@@ -22,6 +22,8 @@ swift build -c "$CONFIG"
 
 BIN_PATH="$ROOT_DIR/.build/$CONFIG/Liveflow"
 APP_BUNDLE="$ROOT_DIR/build/Liveflow.app"
+APPLICATIONS_APP="/Applications/Liveflow.app"
+
 CONTENTS_DIR="$APP_BUNDLE/Contents"
 MACOS_DIR="$CONTENTS_DIR/MacOS"
 RESOURCES_DIR="$CONTENTS_DIR/Resources"
@@ -36,8 +38,13 @@ cp "$ROOT_DIR/native/LiveflowIcon.icns" "$RESOURCES_DIR/LiveflowIcon.icns"
 echo "Signing application bundle..."
 codesign --force --deep --sign - --entitlements "$ROOT_DIR/Liveflow.entitlements" "$APP_BUNDLE"
 
-touch "$APP_BUNDLE"
+echo "Deploying and replacing to /Applications/Liveflow.app..."
+rm -rf "$APPLICATIONS_APP"
+cp -R "$APP_BUNDLE" "$APPLICATIONS_APP"
+codesign --force --deep --sign - --entitlements "$ROOT_DIR/Liveflow.entitlements" "$APPLICATIONS_APP"
+touch "$APPLICATIONS_APP"
 
 echo "========================================"
 echo " Successfully created: $APP_BUNDLE"
+echo " Successfully deployed to: $APPLICATIONS_APP"
 echo "========================================"

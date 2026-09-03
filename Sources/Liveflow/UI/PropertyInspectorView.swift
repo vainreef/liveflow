@@ -1,6 +1,81 @@
 import SwiftUI
 import AppKit
 
+/// AppKit-backed inline text editor with auto-select-all and right-alignment.
+/// Enter = apply, Esc = cancel, Click outside / blur = cancel.
+public struct InlineScrubEditor: NSViewRepresentable {
+    let initialText: String
+    let onCommit: (Double) -> Void
+    let onCancel: () -> Void
+
+    public func makeCoordinator() -> Coordinator {
+        Coordinator(initialText: initialText, onCommit: onCommit, onCancel: onCancel)
+    }
+
+    public func makeNSView(context: Context) -> NSTextField {
+        let tf = NSTextField()
+        tf.isBordered = false
+        tf.drawsBackground = false
+        tf.focusRingType = .none
+        tf.alignment = .right
+        tf.font = .monospacedSystemFont(ofSize: 11, weight: .medium)
+        tf.textColor = .controlTextColor
+        tf.stringValue = initialText
+        tf.delegate = context.coordinator
+
+        DispatchQueue.main.async {
+            if let window = tf.window {
+                window.makeFirstResponder(tf)
+                tf.selectText(nil) // Selects all text automatically
+            }
+        }
+        return tf
+    }
+
+    public func updateNSView(_ nsView: NSTextField, context: Context) {}
+
+    public final class Coordinator: NSObject, NSTextFieldDelegate {
+        let initialText: String
+        let onCommit: (Double) -> Void
+        let onCancel: () -> Void
+        private var committed = false
+
+        init(initialText: String, onCommit: @escaping (Double) -> Void, onCancel: @escaping () -> Void) {
+            self.initialText = initialText
+            self.onCommit = onCommit
+            self.onCancel = onCancel
+        }
+
+        public func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+            if commandSelector == #selector(NSResponder.insertNewline(_:)) {
+                // Enter pressed -> Apply
+                committed = true
+                if let val = Double(control.stringValue) {
+                    onCommit(val)
+                } else {
+                    onCancel()
+                }
+                control.window?.makeFirstResponder(nil)
+                return true
+            } else if commandSelector == #selector(NSResponder.cancelOperation(_:)) {
+                // Esc pressed -> Cancel
+                committed = true
+                onCancel()
+                control.window?.makeFirstResponder(nil)
+                return true
+            }
+            return false
+        }
+
+        public func controlTextDidEndEditing(_ obj: Notification) {
+            if !committed {
+                // Clicked outside / blurred -> Cancel without applying
+                onCancel()
+            }
+        }
+    }
+}
+
 /// Premiere Pro-style scrubbable numeric field.
 /// Click and drag horizontally to smoothly adjust values with real-time visual feedback.
 /// Supports Shift for 5x acceleration, Option for 0.1x precision, and double-click to type directly.
@@ -10,12 +85,13 @@ public struct ScrubbableNumberField: View {
     let range: ClosedRange<Double>
     let step: Double
     let unit: String
+    let onDragStart: (() -> Void)?
+    let onDragEnd: (() -> Void)?
     let onCommit: () -> Void
 
     @State private var isHovered = false
     @State private var isDragging = false
     @State private var isEditing = false
-    @State private var editText = ""
     @State private var dragAccumulated: CGFloat = 0
 
     public init(
@@ -24,6 +100,8 @@ public struct ScrubbableNumberField: View {
         range: ClosedRange<Double>,
         step: Double = 1.0,
         unit: String = "",
+        onDragStart: (() -> Void)? = nil,
+        onDragEnd: (() -> Void)? = nil,
         onCommit: @escaping () -> Void
     ) {
         self.label = label
@@ -31,6 +109,8 @@ public struct ScrubbableNumberField: View {
         self.range = range
         self.step = step
         self.unit = unit
+        self.onDragStart = onDragStart
+        self.onDragEnd = onDragEnd
         self.onCommit = onCommit
     }
 
@@ -41,91 +121,103 @@ public struct ScrubbableNumberField: View {
                 .foregroundColor(.secondary)
                 .frame(width: 38, alignment: .leading)
 
-            if isEditing {
-                TextField("", text: $editText, onCommit: {
-                    if let val = Double(editText) {
-                        value = min(max(range.lowerBound, val), range.upperBound)
-                        onCommit()
-                    }
-                    isEditing = false
-                })
-                .textFieldStyle(.roundedBorder)
-                .controlSize(.mini)
-                .frame(height: 18)
-            } else {
-                HStack(spacing: 1) {
-                    Text(String(format: "%.0f", value))
-                        .font(.system(size: 11, weight: .medium, design: .monospaced))
-                        .foregroundColor(isDragging ? .blue : (isHovered ? .accentColor : .primary))
-
-                    if !unit.isEmpty {
-                        Text(unit)
-                            .font(.system(size: 9))
-                            .foregroundColor(.secondary)
-                    }
-                }
-                .padding(.horizontal, 4)
-                .padding(.vertical, 2)
-                .frame(maxWidth: .infinity, alignment: .trailing)
-                .background(
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(isDragging ? Color.blue.opacity(0.18) : (isHovered ? Color.accentColor.opacity(0.12) : Color(NSColor.controlBackgroundColor)))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 3)
-                        .stroke(isDragging ? Color.blue : (isHovered ? Color.accentColor.opacity(0.5) : Color.secondary.opacity(0.2)), lineWidth: 1)
-                )
-                .contentShape(Rectangle())
-                .onHover { hovering in
-                    isHovered = hovering
-                    if hovering {
-                        NSCursor.resizeLeftRight.push()
-                    } else {
-                        NSCursor.pop()
-                    }
-                }
-                .gesture(
-                    DragGesture(minimumDistance: 1)
-                        .onChanged { gesture in
-                            if !isDragging {
-                                isDragging = true
-                                dragAccumulated = 0
-                            }
-                            let currentX = gesture.translation.width
-                            let deltaX = currentX - dragAccumulated
-                            dragAccumulated = currentX
-
-                            var multiplier = 1.0
-                            if NSEvent.modifierFlags.contains(.shift) {
-                                multiplier = 5.0
-                            } else if NSEvent.modifierFlags.contains(.option) {
-                                multiplier = 0.1
-                            }
-
-                            let deltaValue = Double(deltaX) * step * multiplier
-                            let newValue = min(max(range.lowerBound, value + deltaValue), range.upperBound)
-                            if newValue != value {
-                                value = newValue
-                                onCommit()
-                            }
+            ZStack(alignment: .trailing) {
+                if isEditing {
+                    InlineScrubEditor(
+                        initialText: String(format: "%.0f", value),
+                        onCommit: { newVal in
+                            isEditing = false
+                            value = min(max(range.lowerBound, newVal), range.upperBound)
+                            onCommit()
+                        },
+                        onCancel: {
+                            isEditing = false
                         }
-                        .onEnded { _ in
-                            isDragging = false
+                    )
+                    .frame(height: 18)
+                    .padding(.horizontal, 4)
+                } else {
+                    HStack(spacing: 1) {
+                        Text(String(format: "%.0f", value))
+                            .font(.system(size: 11, weight: .medium, design: .monospaced))
+                            .foregroundColor(isDragging ? .blue : (isHovered ? .accentColor : .primary))
+
+                        if !unit.isEmpty {
+                            Text(unit)
+                                .font(.system(size: 9))
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 2)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                }
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(isDragging ? Color.blue.opacity(0.18) : (isHovered || isEditing ? Color.accentColor.opacity(0.12) : Color(NSColor.controlBackgroundColor)))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 3)
+                    .stroke(isDragging ? Color.blue : (isHovered || isEditing ? Color.accentColor.opacity(0.5) : Color.secondary.opacity(0.2)), lineWidth: 1)
+            )
+            .contentShape(Rectangle())
+            .onHover { hovering in
+                guard !isEditing else { return }
+                isHovered = hovering
+                if hovering {
+                    NSCursor.resizeLeftRight.push()
+                } else {
+                    NSCursor.pop()
+                }
+            }
+            .gesture(
+                DragGesture(minimumDistance: 1)
+                    .onChanged { gesture in
+                        guard !isEditing else { return }
+                        if !isDragging {
+                            isDragging = true
                             dragAccumulated = 0
+                            onDragStart?()
                         }
-                )
-                .onTapGesture(count: 2) {
-                    editText = String(format: "%.0f", value)
-                    isEditing = true
-                }
+                        let currentX = gesture.translation.width
+                        let deltaX = currentX - dragAccumulated
+                        dragAccumulated = currentX
+
+                        var multiplier = 1.0
+                        if NSEvent.modifierFlags.contains(.shift) {
+                            multiplier = 5.0
+                        } else if NSEvent.modifierFlags.contains(.option) {
+                            multiplier = 0.1
+                        }
+
+                        let deltaValue = Double(deltaX) * step * multiplier
+                        let newValue = min(max(range.lowerBound, value + deltaValue), range.upperBound)
+                        if newValue != value {
+                            value = newValue
+                            onCommit()
+                        }
+                    }
+                    .onEnded { _ in
+                        guard !isEditing else { return }
+                        isDragging = false
+                        dragAccumulated = 0
+                        onDragEnd?()
+                    }
+            )
+            .onTapGesture(count: 2) {
+                isEditing = true
             }
         }
     }
 }
 
 /// Dedicated middle column property inspector for the selected SceneItem.
+/// Integrates Premiere-style scrubbable controls, Undo / Redo history, and Copy / Paste.
 public struct PropertyInspectorView: View {
     @ObservedObject var engine: StreamEngine
+
+    @State private var dragStartSnapshot: SceneItemTransformSnapshot?
 
     public init(engine: StreamEngine) {
         self.engine = engine
@@ -133,23 +225,58 @@ public struct PropertyInspectorView: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            // Header
-            HStack {
+            // Header with Undo / Redo and Copy / Paste controls
+            HStack(spacing: 6) {
                 Label("Property", systemImage: "slider.horizontal.3")
                     .font(.system(size: 13, weight: .bold))
 
                 Spacer()
 
-                if let item = engine.selectedItem {
-                    Text(item.name)
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color.secondary.opacity(0.1))
-                        .cornerRadius(4)
+                // Undo Button (Cmd+Z)
+                Button {
+                    engine.undo()
+                } label: {
+                    Image(systemName: "arrow.uturn.backward")
+                        .font(.system(size: 10))
                 }
+                .buttonStyle(.plain)
+                .disabled(!engine.canUndo)
+                .help("Undo property change (⌘Z)")
+
+                // Redo Button (Cmd+Shift+Z)
+                Button {
+                    engine.redo()
+                } label: {
+                    Image(systemName: "arrow.uturn.forward")
+                        .font(.system(size: 10))
+                }
+                .buttonStyle(.plain)
+                .disabled(!engine.canRedo)
+                .help("Redo property change (⇧⌘Z)")
+
+                Divider().frame(height: 12)
+
+                // Copy Transform (Cmd+C)
+                Button {
+                    engine.copySelectedTransform()
+                } label: {
+                    Image(systemName: "doc.on.doc")
+                        .font(.system(size: 10))
+                }
+                .buttonStyle(.plain)
+                .disabled(engine.selectedItem == nil)
+                .help("Copy source transform (⌘C)")
+
+                // Paste Transform (Cmd+V)
+                Button {
+                    engine.pasteSelectedTransform()
+                } label: {
+                    Image(systemName: "doc.on.clipboard")
+                        .font(.system(size: 10))
+                }
+                .buttonStyle(.plain)
+                .disabled(engine.selectedItem == nil || !engine.canPasteTransform)
+                .help("Paste source transform (⌘V)")
             }
 
             if let item = engine.selectedItem {
@@ -197,9 +324,11 @@ public struct PropertyInspectorView: View {
                                     ),
                                     range: -1920...3840,
                                     step: 1.0,
-                                    unit: "px"
+                                    unit: "px",
+                                    onDragStart: { recordDragStart(item: item) },
+                                    onDragEnd: { recordDragEnd(item: item) }
                                 ) {
-                                    engine.updateSceneItems()
+                                    recordChange(item: item)
                                 }
 
                                 ScrubbableNumberField(
@@ -210,9 +339,11 @@ public struct PropertyInspectorView: View {
                                     ),
                                     range: -1080...2160,
                                     step: 1.0,
-                                    unit: "px"
+                                    unit: "px",
+                                    onDragStart: { recordDragStart(item: item) },
+                                    onDragEnd: { recordDragEnd(item: item) }
                                 ) {
-                                    engine.updateSceneItems()
+                                    recordChange(item: item)
                                 }
                             }
 
@@ -225,9 +356,11 @@ public struct PropertyInspectorView: View {
                                     ),
                                     range: 20...3840,
                                     step: 1.0,
-                                    unit: "px"
+                                    unit: "px",
+                                    onDragStart: { recordDragStart(item: item) },
+                                    onDragEnd: { recordDragEnd(item: item) }
                                 ) {
-                                    engine.updateSceneItems()
+                                    recordChange(item: item)
                                 }
 
                                 ScrubbableNumberField(
@@ -238,9 +371,11 @@ public struct PropertyInspectorView: View {
                                     ),
                                     range: 20...2160,
                                     step: 1.0,
-                                    unit: "px"
+                                    unit: "px",
+                                    onDragStart: { recordDragStart(item: item) },
+                                    onDragEnd: { recordDragEnd(item: item) }
                                 ) {
-                                    engine.updateSceneItems()
+                                    recordChange(item: item)
                                 }
                             }
                         }
@@ -262,9 +397,11 @@ public struct PropertyInspectorView: View {
                                     ),
                                     range: 0...95,
                                     step: 0.5,
-                                    unit: "%"
+                                    unit: "%",
+                                    onDragStart: { recordDragStart(item: item) },
+                                    onDragEnd: { recordDragEnd(item: item) }
                                 ) {
-                                    engine.updateSceneItems()
+                                    recordChange(item: item)
                                 }
 
                                 ScrubbableNumberField(
@@ -275,9 +412,11 @@ public struct PropertyInspectorView: View {
                                     ),
                                     range: 0...95,
                                     step: 0.5,
-                                    unit: "%"
+                                    unit: "%",
+                                    onDragStart: { recordDragStart(item: item) },
+                                    onDragEnd: { recordDragEnd(item: item) }
                                 ) {
-                                    engine.updateSceneItems()
+                                    recordChange(item: item)
                                 }
                             }
 
@@ -290,9 +429,11 @@ public struct PropertyInspectorView: View {
                                     ),
                                     range: 0...95,
                                     step: 0.5,
-                                    unit: "%"
+                                    unit: "%",
+                                    onDragStart: { recordDragStart(item: item) },
+                                    onDragEnd: { recordDragEnd(item: item) }
                                 ) {
-                                    engine.updateSceneItems()
+                                    recordChange(item: item)
                                 }
 
                                 ScrubbableNumberField(
@@ -303,9 +444,11 @@ public struct PropertyInspectorView: View {
                                     ),
                                     range: 0...95,
                                     step: 0.5,
-                                    unit: "%"
+                                    unit: "%",
+                                    onDragStart: { recordDragStart(item: item) },
+                                    onDragEnd: { recordDragEnd(item: item) }
                                 ) {
-                                    engine.updateSceneItems()
+                                    recordChange(item: item)
                                 }
                             }
                         }
@@ -322,9 +465,11 @@ public struct PropertyInspectorView: View {
                                 ),
                                 range: 0...100,
                                 step: 1.0,
-                                unit: "%"
+                                unit: "%",
+                                onDragStart: { recordDragStart(item: item) },
+                                onDragEnd: { recordDragEnd(item: item) }
                             ) {
-                                engine.updateSceneItems()
+                                recordChange(item: item)
                             }
                         }
                     }
@@ -344,5 +489,21 @@ public struct PropertyInspectorView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
+    }
+
+    private func recordDragStart(item: SceneItem) {
+        dragStartSnapshot = SceneItemTransformSnapshot(from: item)
+    }
+
+    private func recordDragEnd(item: SceneItem) {
+        if let start = dragStartSnapshot {
+            let end = SceneItemTransformSnapshot(from: item)
+            engine.recordTransformChange(itemId: item.id, before: start, after: end)
+            dragStartSnapshot = nil
+        }
+    }
+
+    private func recordChange(item: SceneItem) {
+        engine.updateSceneItems()
     }
 }

@@ -22,6 +22,36 @@ struct LiveflowApp: App {
             // 1. Remove "New Window" (Cmd+N) so app is strictly single-window
             CommandGroup(replacing: .newItem) {}
 
+            // 1.1 Undo / Redo
+            CommandGroup(replacing: .undoRedo) {
+                Button("Undo Property Change") {
+                    engine.undo()
+                }
+                .keyboardShortcut("z", modifiers: .command)
+                .disabled(!engine.canUndo)
+
+                Button("Redo Property Change") {
+                    engine.redo()
+                }
+                .keyboardShortcut("z", modifiers: [.command, .shift])
+                .disabled(!engine.canRedo)
+            }
+
+            // 1.2 Copy / Paste Source Transform
+            CommandGroup(replacing: .pasteboard) {
+                Button("Copy Source Transform") {
+                    engine.copySelectedTransform()
+                }
+                .keyboardShortcut("c", modifiers: .command)
+                .disabled(engine.selectedItem == nil)
+
+                Button("Paste Source Transform") {
+                    engine.pasteSelectedTransform()
+                }
+                .keyboardShortcut("v", modifiers: .command)
+                .disabled(engine.selectedItem == nil || !engine.canPasteTransform)
+            }
+
             // 2. App Info & Updates
             CommandGroup(replacing: .appInfo) {
                 Button("About Liveflow") {

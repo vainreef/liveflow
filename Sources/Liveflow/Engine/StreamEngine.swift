@@ -430,32 +430,95 @@ public final class StreamEngine: ObservableObject {
         sceneItems.first(where: { $0.id == selectedItemID })
     }
 
+    // MARK: - Undo / Redo & Clipboard Management
+    public struct UndoAction: Sendable {
+        public let itemId: UUID
+        public let before: SceneItemTransformSnapshot
+        public let after: SceneItemTransformSnapshot
+    }
+
+    @Published public private(set) var undoStack: [UndoAction] = []
+    @Published public private(set) var redoStack: [UndoAction] = []
+    @Published public private(set) var clipboardTransform: SceneItemTransformSnapshot?
+
+    public var canUndo: Bool { !undoStack.isEmpty }
+    public var canRedo: Bool { !redoStack.isEmpty }
+    public var canPasteTransform: Bool { clipboardTransform != nil }
+
+    public func recordTransformChange(itemId: UUID, before: SceneItemTransformSnapshot, after: SceneItemTransformSnapshot) {
+        guard before != after else { return }
+        undoStack.append(UndoAction(itemId: itemId, before: before, after: after))
+        if undoStack.count > 50 {
+            undoStack.removeFirst()
+        }
+        redoStack.removeAll()
+    }
+
+    public func undo() {
+        guard let action = undoStack.popLast() else { return }
+        guard let item = sceneItems.first(where: { $0.id == action.itemId }) else { return }
+        action.before.apply(to: item)
+        redoStack.append(action)
+        selectedItemID = item.id
+        updateSceneItems()
+    }
+
+    public func redo() {
+        guard let action = redoStack.popLast() else { return }
+        guard let item = sceneItems.first(where: { $0.id == action.itemId }) else { return }
+        action.after.apply(to: item)
+        undoStack.append(action)
+        selectedItemID = item.id
+        updateSceneItems()
+    }
+
+    public func copySelectedTransform() {
+        guard let item = selectedItem else { return }
+        clipboardTransform = SceneItemTransformSnapshot(from: item)
+    }
+
+    public func pasteSelectedTransform() {
+        guard let item = selectedItem, let snapshot = clipboardTransform else { return }
+        let before = SceneItemTransformSnapshot(from: item)
+        snapshot.apply(to: item)
+        recordTransformChange(itemId: item.id, before: before, after: snapshot)
+        updateSceneItems()
+    }
+
     public func fitSelectedItem() {
         guard let item = selectedItem else { return }
+        let before = SceneItemTransformSnapshot(from: item)
         item.fitToCanvas(canvasWidth: canvasWidth, canvasHeight: canvasHeight)
-        worker.setSceneItems(sceneItems)
-        objectWillChange.send()
+        let after = SceneItemTransformSnapshot(from: item)
+        recordTransformChange(itemId: item.id, before: before, after: after)
+        updateSceneItems()
     }
 
     public func fillAndCropSelectedItem() {
         guard let item = selectedItem else { return }
+        let before = SceneItemTransformSnapshot(from: item)
         item.fillAndCrop(canvasWidth: canvasWidth, canvasHeight: canvasHeight)
-        worker.setSceneItems(sceneItems)
-        objectWillChange.send()
+        let after = SceneItemTransformSnapshot(from: item)
+        recordTransformChange(itemId: item.id, before: before, after: after)
+        updateSceneItems()
     }
 
     public func resetSelectedItem() {
         guard let item = selectedItem else { return }
+        let before = SceneItemTransformSnapshot(from: item)
         item.resetTransform()
-        worker.setSceneItems(sceneItems)
-        objectWillChange.send()
+        let after = SceneItemTransformSnapshot(from: item)
+        recordTransformChange(itemId: item.id, before: before, after: after)
+        updateSceneItems()
     }
 
     public func moveSelectedItem(dx: CGFloat, dy: CGFloat) {
         guard let item = selectedItem else { return }
+        let before = SceneItemTransformSnapshot(from: item)
         item.move(dx: dx, dy: dy)
-        worker.setSceneItems(sceneItems)
-        objectWillChange.send()
+        let after = SceneItemTransformSnapshot(from: item)
+        recordTransformChange(itemId: item.id, before: before, after: after)
+        updateSceneItems()
     }
 
     public func updateSceneItems() {

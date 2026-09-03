@@ -156,6 +156,31 @@ public final class SceneItem: Identifiable, @unchecked Sendable {
     }
 }
 
+/// Snapshot of transform, crop, and opacity for undo/redo and copy/paste
+public struct SceneItemTransformSnapshot: Equatable, Sendable {
+    public var rect: CGRect
+    public var cropRect: CGRect
+    public var opacity: Float
+
+    public init(rect: CGRect, cropRect: CGRect, opacity: Float) {
+        self.rect = rect
+        self.cropRect = cropRect
+        self.opacity = opacity
+    }
+
+    public init(from item: SceneItem) {
+        self.rect = item.rect
+        self.cropRect = item.cropRect
+        self.opacity = item.opacity
+    }
+
+    public func apply(to item: SceneItem) {
+        item.rect = self.rect
+        item.cropRect = self.cropRect
+        item.opacity = self.opacity
+    }
+}
+
 private extension Comparable {
     func clamped(to limits: ClosedRange<Self>) -> Self {
         return min(max(self, limits.lowerBound), limits.upperBound)

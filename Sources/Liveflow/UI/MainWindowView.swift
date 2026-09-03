@@ -120,7 +120,7 @@ public struct MainWindowView: View {
             }
         }
         .background(Color(NSColor.windowBackgroundColor))
-        .frame(minWidth: 800, minHeight: 610)
+        .frame(minWidth: 780, minHeight: 600)
     }
 
     private var statusColor: Color {

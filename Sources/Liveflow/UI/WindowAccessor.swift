@@ -11,7 +11,9 @@ public final class WindowManager: NSObject, NSWindowDelegate {
         self.mainWindow = window
         window.delegate = self
         window.isReleasedWhenClosed = false
-        window.minSize = NSSize(width: 800, height: 800 * 9.0 / 16.0 + 160.0)
+        let minW: CGFloat = 780.0
+        let minH: CGFloat = minW * (9.0 / 16.0) + 140.0 + 28.0
+        window.minSize = NSSize(width: minW, height: minH)
     }
 
     public func showMainWindow() {
@@ -35,18 +37,6 @@ public final class WindowManager: NSObject, NSWindowDelegate {
         }
     }
 
-    public func adjustBottomPanelHeight(deltaY: CGFloat) {
-        guard let window = mainWindow else { return }
-        var frame = window.frame
-        let newBottom = min(max(150.0, bottomPanelHeight + deltaY), 450.0)
-        let diff = newBottom - bottomPanelHeight
-        bottomPanelHeight = newBottom
-
-        frame.origin.y -= diff
-        frame.size.height += diff
-        window.setFrame(frame, display: true, animate: false)
-    }
-
     // MARK: - NSWindowDelegate
     public func windowShouldClose(_ sender: NSWindow) -> Bool {
         sender.orderOut(nil)
@@ -58,27 +48,58 @@ public final class WindowManager: NSObject, NSWindowDelegate {
     public func windowWillResize(_ sender: NSWindow, to frameSize: NSSize) -> NSSize {
         let titleBarHeight: CGFloat
         if let cv = sender.contentView {
-            titleBarHeight = sender.frame.height - cv.frame.height
+            titleBarHeight = max(0, sender.frame.height - cv.frame.height)
         } else {
             titleBarHeight = 28.0
         }
 
-        // If width is resized (corner or side resize):
-        // Automatically sync height = width * (9 / 16) + bottomPanelHeight
-        // to mathematically guarantee ZERO black bars on all 4 sides of the monitor
-        if abs(frameSize.width - sender.frame.width) > 1.0 {
-            let contentWidth = frameSize.width
-            let monitorHeight = contentWidth * (9.0 / 16.0)
-            let targetContentHeight = monitorHeight + bottomPanelHeight
-            return NSSize(width: frameSize.width, height: targetContentHeight + titleBarHeight)
-        } else {
-            // Pure vertical resize: user is resizing bottom panel
-            let contentWidth = frameSize.width
-            let monitorHeight = contentWidth * (9.0 / 16.0)
-            let newBottom = (frameSize.height - titleBarHeight) - monitorHeight
-            bottomPanelHeight = min(max(150.0, newBottom), 500.0)
-            return frameSize
+        let currentWidth = sender.frame.width
+        let currentHeight = sender.frame.height
+
+        let widthChanged = abs(frameSize.width - currentWidth) > 0.5
+        let heightChanged = abs(frameSize.height - currentHeight) > 0.5
+
+        let minWidth: CGFloat = 780.0
+        let minBottomHeight: CGFloat = 140.0
+
+        // 1. 横向拉伸 (Horizontal Resize):
+        // 整个窗口高度绝对不变，只改变下面部分的高度（监视器变大，下面自适应收缩，窗口总高度固定）
+        if widthChanged && !heightChanged {
+            let fixedHeight = currentHeight
+            let availableContentHeight = fixedHeight - titleBarHeight
+
+            // 顶格 16:9 监视器高度 = width * 9 / 16
+            // 下方板块必须保留至少 minBottomHeight，因此宽度的上限为：
+            let maxAllowedWidth = max(minWidth, (availableContentHeight - minBottomHeight) * (16.0 / 9.0))
+            let clampedWidth = min(max(minWidth, frameSize.width), maxAllowedWidth)
+
+            return NSSize(width: clampedWidth, height: fixedHeight)
         }
+
+        // 2. 纵向拉伸 (Vertical Resize):
+        // 宽度绝对不变，只改变下面部分的高度（监视器大小完全不变，所有拉伸空间全部提供给下方控制面板）
+        if heightChanged && !widthChanged {
+            let fixedWidth = currentWidth
+            let monitorHeight = fixedWidth * (9.0 / 16.0)
+            let minAllowedHeight = monitorHeight + minBottomHeight + titleBarHeight
+            let clampedHeight = max(frameSize.height, minAllowedHeight)
+
+            return NSSize(width: fixedWidth, height: clampedHeight)
+        }
+
+        // 3. 斜向拉伸 (Diagonal / Corner Resize):
+        // 用户同时改变宽度与高度：
+        // 宽度决定 16:9 监视器大小，高度在保证下方板块 >= minBottomHeight 的前提下自由拉伸
+        if widthChanged && heightChanged {
+            let clampedWidth = max(minWidth, frameSize.width)
+            let monitorHeight = clampedWidth * (9.0 / 16.0)
+            let minAllowedHeight = monitorHeight + minBottomHeight + titleBarHeight
+            let clampedHeight = max(frameSize.height, minAllowedHeight)
+
+            return NSSize(width: clampedWidth, height: clampedHeight)
+        }
+
+        return frameSize
     }
 }
 

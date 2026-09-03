@@ -23,7 +23,7 @@ public final class VideoToolboxEncoder: @unchecked Sendable {
         width: Int32 = 1920,
         height: Int32 = 1080,
         fps: Int32 = 60,
-        bitRate: Int32 = 6_000_000, // 6 Mbps default for 1080p60
+        bitRate: Int32 = 15_000_000, // 15 Mbps default for high-bitrate live streaming
         codec: CMVideoCodecType = kCMVideoCodecType_H264
     ) {
         self.width = width

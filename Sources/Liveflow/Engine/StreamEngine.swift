@@ -115,7 +115,7 @@ public final class StreamEngine: ObservableObject {
     @Published public var canvasWidth: Int = 1920
     @Published public var canvasHeight: Int = 1080
     @Published public var targetFPS: Int = 60
-    @Published public var targetBitrateKbps: Int = 6000
+    @Published public var targetBitrateKbps: Int = 15000
 
     public let worker: RenderLoopWorker
     private var videoEncoder: VideoToolboxEncoder?

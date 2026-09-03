@@ -133,14 +133,24 @@ public struct StreamControlsView: View {
                             .fontWeight(.semibold)
                     }
 
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Bitrate")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                        Text("\(engine.targetBitrateKbps) kbps")
-                            .font(.caption)
-                            .fontWeight(.semibold)
+                    Menu {
+                        Button("15 Mbps (15,000 kbps) - 推荐高码率") { engine.targetBitrateKbps = 15000 }
+                        Button("20 Mbps (20,000 kbps) - 4K/极高清") { engine.targetBitrateKbps = 20000 }
+                        Button("12 Mbps (12,000 kbps) - 进阶画质") { engine.targetBitrateKbps = 12000 }
+                        Button("8 Mbps (8,000 kbps) - 标准画质") { engine.targetBitrateKbps = 8000 }
+                        Button("6 Mbps (6,000 kbps) - 均衡画质") { engine.targetBitrateKbps = 6000 }
+                    } label: {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Bitrate")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                            Text(engine.targetBitrateKbps >= 1000 ? "\(engine.targetBitrateKbps / 1000) Mbps" : "\(engine.targetBitrateKbps) kbps")
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                        }
                     }
+                    .menuStyle(.borderlessButton)
+                    .disabled(engine.isLive)
 
                     Spacer()
 

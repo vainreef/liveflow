@@ -6,13 +6,13 @@ public struct StreamControlsView: View {
     public var body: some View {
         HStack(alignment: .top, spacing: 16) {
             // ==========================================
-            // 1. Left Column: Sources & Transform Panel
+            // 1. Left Column: Sources & Transform Bar
             // ==========================================
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 6) {
                 // Header
                 HStack {
                     Label("Sources", systemImage: "square.2.layers.3d")
-                        .font(.headline)
+                        .font(.system(size: 13, weight: .bold))
 
                     Spacer()
 
@@ -53,21 +53,21 @@ public struct StreamControlsView: View {
                     .controlSize(.small)
                 }
 
-                // Sources List in a tidy card container
+                // Sources List in a tight, compact container
                 VStack(spacing: 0) {
-                    ScrollView(.vertical) {
-                        VStack(spacing: 4) {
+                    ScrollView(.vertical, showsIndicators: true) {
+                        VStack(spacing: 3) {
                             if engine.sceneItems.isEmpty {
-                                Text("No sources added. Click + to add display.")
+                                Text("No sources. Click + to add display.")
                                     .font(.system(size: 11))
                                     .foregroundColor(.secondary)
-                                    .padding(.vertical, 12)
+                                    .frame(maxWidth: .infinity, minHeight: 70)
                             } else {
                                 ForEach(engine.sceneItems) { item in
                                     let isSelected = (engine.selectedItemID == item.id)
-                                    HStack(spacing: 8) {
+                                    HStack(spacing: 6) {
                                         Text(item.name)
-                                            .font(.system(size: 12, weight: isSelected ? .bold : .medium))
+                                            .font(.system(size: 11, weight: isSelected ? .bold : .regular))
                                             .foregroundColor(item.isEnabled ? .primary : .secondary)
                                             .lineLimit(1)
 
@@ -78,6 +78,7 @@ public struct StreamControlsView: View {
                                             engine.updateSceneItems()
                                         } label: {
                                             Image(systemName: item.isEnabled ? "eye.fill" : "eye.slash")
+                                                .font(.system(size: 11))
                                                 .foregroundColor(item.isEnabled ? .accentColor : .secondary)
                                         }
                                         .buttonStyle(.plain)
@@ -86,18 +87,19 @@ public struct StreamControlsView: View {
                                             Task { await engine.removeSceneItem(id: item.id) }
                                         } label: {
                                             Image(systemName: "trash")
+                                                .font(.system(size: 10))
                                                 .foregroundColor(.red.opacity(0.8))
                                         }
                                         .buttonStyle(.plain)
                                     }
                                     .padding(.horizontal, 8)
-                                    .padding(.vertical, 6)
+                                    .padding(.vertical, 5)
                                     .background(
-                                        RoundedRectangle(cornerRadius: 5)
+                                        RoundedRectangle(cornerRadius: 4)
                                             .fill(isSelected ? Color.accentColor.opacity(0.18) : Color(NSColor.controlBackgroundColor))
                                     )
                                     .overlay(
-                                        RoundedRectangle(cornerRadius: 5)
+                                        RoundedRectangle(cornerRadius: 4)
                                             .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 1)
                                     )
                                     .contentShape(Rectangle())
@@ -107,140 +109,122 @@ public struct StreamControlsView: View {
                                 }
                             }
                         }
-                        .padding(6)
+                        .padding(4)
                     }
-                    .frame(height: 96)
+                    .frame(height: 84)
                 }
-                .background(Color(NSColor.controlBackgroundColor).opacity(0.5))
-                .cornerRadius(6)
+                .background(Color(NSColor.controlBackgroundColor).opacity(0.6))
+                .cornerRadius(5)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 6)
+                    RoundedRectangle(cornerRadius: 5)
                         .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
                 )
 
-                // Transform & Crop Controls for Selected Item
-                if let selected = engine.selectedItem {
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack(spacing: 6) {
-                            Text("Transform: \(selected.name)")
-                                .font(.system(size: 10, weight: .bold))
-                                .foregroundColor(.secondary)
-                                .lineLimit(1)
-                            Spacer()
+                // Transform Toolbar directly below the list
+                if engine.selectedItem != nil {
+                    HStack(spacing: 5) {
+                        Button("Fit (16:9)") {
+                            engine.fitSelectedItem()
                         }
+                        .buttonStyle(.bordered)
+                        .controlSize(.mini)
+                        .help("Fit within 16:9 canvas maintaining aspect ratio")
 
-                        HStack(spacing: 6) {
-                            Button("Fit (16:9)") {
-                                engine.fitSelectedItem()
+                        Button("Fill & Crop") {
+                            engine.fillAndCropSelectedItem()
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.mini)
+                        .help("Crop borders to fill 16:9 canvas completely")
+
+                        Button("Reset") {
+                            engine.resetSelectedItem()
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.mini)
+
+                        Spacer()
+
+                        // Move Direction Steppers
+                        HStack(spacing: 2) {
+                            Button {
+                                engine.moveSelectedItem(dx: -0.02, dy: 0)
+                            } label: {
+                                Image(systemName: "arrow.left")
                             }
                             .buttonStyle(.bordered)
                             .controlSize(.mini)
-                            .help("Preserve display aspect ratio inside 16:9 canvas")
 
-                            Button("Fill & Crop") {
-                                engine.fillAndCropSelectedItem()
-                            }
-                            .buttonStyle(.bordered)
-                            .controlSize(.mini)
-                            .help("Crop borders to fill 16:9 canvas completely")
-
-                            Button("Reset") {
-                                engine.resetSelectedItem()
+                            Button {
+                                engine.moveSelectedItem(dx: 0, dy: -0.02)
+                            } label: {
+                                Image(systemName: "arrow.up")
                             }
                             .buttonStyle(.bordered)
                             .controlSize(.mini)
 
-                            Spacer()
-
-                            // Move Steppers
-                            HStack(spacing: 2) {
-                                Button {
-                                    engine.moveSelectedItem(dx: -0.02, dy: 0)
-                                } label: {
-                                    Image(systemName: "arrow.left")
-                                }
-                                .buttonStyle(.bordered)
-                                .controlSize(.mini)
-
-                                Button {
-                                    engine.moveSelectedItem(dx: 0, dy: -0.02)
-                                } label: {
-                                    Image(systemName: "arrow.up")
-                                }
-                                .buttonStyle(.bordered)
-                                .controlSize(.mini)
-
-                                Button {
-                                    engine.moveSelectedItem(dx: 0, dy: 0.02)
-                                } label: {
-                                    Image(systemName: "arrow.down")
-                                }
-                                .buttonStyle(.bordered)
-                                .controlSize(.mini)
-
-                                Button {
-                                    engine.moveSelectedItem(dx: 0.02, dy: 0)
-                                } label: {
-                                    Image(systemName: "arrow.right")
-                                }
-                                .buttonStyle(.bordered)
-                                .controlSize(.mini)
+                            Button {
+                                engine.moveSelectedItem(dx: 0, dy: 0.02)
+                            } label: {
+                                Image(systemName: "arrow.down")
                             }
+                            .buttonStyle(.bordered)
+                            .controlSize(.mini)
+
+                            Button {
+                                engine.moveSelectedItem(dx: 0.02, dy: 0)
+                            } label: {
+                                Image(systemName: "arrow.right")
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.mini)
                         }
                     }
-                    .padding(6)
-                    .background(Color(NSColor.controlBackgroundColor).opacity(0.35))
-                    .cornerRadius(5)
+                    .padding(.horizontal, 2)
                 }
             }
-            .frame(width: 360)
+            .frame(width: 330)
 
             Divider()
 
             // ========================================================
             // 2. Right Column: Stream Destination (Top) & Audio (Bottom)
             // ========================================================
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 8) {
                 // Top: Stream Destination
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 5) {
                     Label("Stream Destination", systemImage: "antenna.radiowaves.left.and.right")
-                        .font(.headline)
+                        .font(.system(size: 13, weight: .bold))
 
                     HStack(spacing: 8) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Server URL:")
-                                .font(.caption)
+                                .font(.system(size: 10))
                                 .foregroundColor(.secondary)
                             TextField("rtmp://...", text: $engine.rtmpURL)
                                 .textFieldStyle(.roundedBorder)
+                                .controlSize(.small)
                                 .disabled(engine.isLive)
                         }
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Stream Key:")
-                                .font(.caption)
+                                .font(.system(size: 10))
                                 .foregroundColor(.secondary)
                             SecureField("key", text: $engine.streamKey)
                                 .textFieldStyle(.roundedBorder)
+                                .controlSize(.small)
                                 .disabled(engine.isLive)
                         }
                     }
 
-                    HStack(spacing: 16) {
-                        VStack(alignment: .leading, spacing: 2) {
+                    HStack(alignment: .center, spacing: 14) {
+                        VStack(alignment: .leading, spacing: 1) {
                             Text("Stream Spec")
-                                .font(.caption2)
+                                .font(.system(size: 9))
                                 .foregroundColor(.secondary)
-                            HStack(spacing: 6) {
-                                Text("1080p60")
-                                    .font(.caption)
-                                    .fontWeight(.bold)
-                                Text("·")
-                                    .foregroundColor(.secondary)
-                                Text("15 Mbps")
-                                    .font(.caption)
-                                    .fontWeight(.bold)
-                            }
+                            Text("1080p60 · 15 Mbps")
+                                .font(.system(size: 11, weight: .bold))
                         }
 
                         Spacer()
@@ -259,7 +243,7 @@ public struct StreamControlsView: View {
                                 Text(engine.isLive ? "Stop Streaming" : "Start Streaming")
                                     .fontWeight(.bold)
                             }
-                            .frame(minWidth: 150, minHeight: 30)
+                            .frame(minWidth: 140, minHeight: 28)
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(engine.isLive ? .red : .blue)
@@ -268,24 +252,24 @@ public struct StreamControlsView: View {
 
                 Divider()
 
-                // Bottom: Audio Mixer (placed under Stream Destination)
-                VStack(alignment: .leading, spacing: 4) {
+                // Bottom: Audio Mixer (placed right under Stream Destination)
+                VStack(alignment: .leading, spacing: 3) {
                     HStack {
                         Label("Audio Mixer", systemImage: "waveform")
-                            .font(.headline)
+                            .font(.system(size: 12, weight: .bold))
 
                         Spacer()
 
-                        Text("Level: \(Int(engine.audioPeakLevel * 100))%")
+                        Text("\(Int(engine.audioPeakLevel * 100))%")
                             .font(.system(size: 11, design: .monospaced))
                             .foregroundColor(.secondary)
                     }
 
                     HStack(spacing: 8) {
                         Text("Microphone")
-                            .font(.caption)
+                            .font(.system(size: 10))
                             .foregroundColor(.secondary)
-                            .frame(width: 80, alignment: .leading)
+                            .frame(width: 70, alignment: .leading)
 
                         GeometryReader { geo in
                             ZStack(alignment: .leading) {
@@ -304,13 +288,14 @@ public struct StreamControlsView: View {
                                     .animation(.linear(duration: 0.05), value: engine.audioPeakLevel)
                             }
                         }
-                        .frame(height: 12)
+                        .frame(height: 10)
                     }
                 }
             }
             .frame(maxWidth: .infinity)
         }
-        .padding(14)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
         .background(Color(NSColor.windowBackgroundColor))
     }
 }

@@ -55,6 +55,7 @@ public final class MTKPreviewView: MTKView, MTKViewDelegate {
 
         var uniforms = LayerUniforms(
             rect: SIMD4<Float>(0, 0, 1, 1),
+            cropRect: SIMD4<Float>(0, 0, 1, 1),
             opacity: 1.0,
             flipY: 1.0
         )

@@ -11,9 +11,10 @@ public enum ShaderSource {
     };
 
     struct LayerUniforms {
-        float4 rect;
-        float opacity;
-        float flipY;
+        float4 rect;     // x, y, width, height in normalized [0, 1] on canvas
+        float4 cropRect; // u, v, width, height in normalized [0, 1] on source texture
+        float opacity;   // 0.0 - 1.0
+        float flipY;     // 1.0 = normal, -1.0 = flipped
         float2 padding;
     };
 
@@ -39,7 +40,9 @@ public enum ShaderSource {
 
         VertexOut out;
         out.position = float4(clipX, clipY, 0.0, 1.0);
-        out.texCoords = (uniforms.flipY > 0.0) ? float2(localPos.x, localPos.y) : float2(localPos.x, 1.0 - localPos.y);
+
+        float2 baseUV = (uniforms.flipY > 0.0) ? float2(localPos.x, localPos.y) : float2(localPos.x, 1.0 - localPos.y);
+        out.texCoords = uniforms.cropRect.xy + baseUV * uniforms.cropRect.zw;
         return out;
     }
 

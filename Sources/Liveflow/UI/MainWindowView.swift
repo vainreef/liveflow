@@ -84,11 +84,20 @@ public struct MainWindowView: View {
                 Divider()
             }
 
-            // Metal Canvas View (16:9 Aspect Ratio)
+            // Metal Canvas View (Strictly Fixed 16:9 Aspect Ratio)
             ZStack {
-                Color.black
+                Color(NSColor.windowBackgroundColor)
+
                 MetalCanvasRepresentable(engine: engine)
                     .aspectRatio(16.0 / 9.0, contentMode: .fit)
+                    .background(Color.black)
+                    .cornerRadius(6)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                    )
+                    .shadow(color: .black.opacity(0.5), radius: 8, x: 0, y: 4)
+                    .padding(12)
             }
             .frame(minHeight: 360)
 

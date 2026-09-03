@@ -108,6 +108,7 @@ public final class StreamEngine: ObservableObject {
     @Published public var isLive: Bool = false
     @Published public var stats: StreamStats = StreamStats()
     @Published public var sceneItems: [SceneItem] = []
+    @Published public var selectedItemID: UUID? = nil
     @Published public var audioPeakLevel: Float = 0.0
     @Published public var availableDisplays: [DisplayItem] = []
     @Published public var hasScreenPermission: Bool = true
@@ -153,6 +154,7 @@ public final class StreamEngine: ObservableObject {
             zIndex: 0,
             isEnabled: true
         )
+        selectedItemID = item.id
         sceneItems.append(item)
         worker.setSceneItems(sceneItems)
 
@@ -277,8 +279,12 @@ public final class StreamEngine: ObservableObject {
                 rect: CGRect(x: 0, y: 0, width: 1, height: 1),
                 opacity: 1.0,
                 zIndex: sceneItems.count,
-                isEnabled: true
+                isEnabled: true,
+                nativeWidth: display.width,
+                nativeHeight: display.height
             )
+            item.fitToCanvas(canvasWidth: canvasWidth, canvasHeight: canvasHeight)
+            selectedItemID = item.id
             sceneItems.append(item)
             worker.setSceneItems(sceneItems)
             lastErrorMessage = nil
@@ -321,8 +327,49 @@ public final class StreamEngine: ObservableObject {
     public func removeSceneItem(id: UUID) async {
         if let idx = sceneItems.firstIndex(where: { $0.id == id }) {
             let item = sceneItems.remove(at: idx)
+            if selectedItemID == id {
+                selectedItemID = sceneItems.first?.id
+            }
             worker.setSceneItems(sceneItems)
             await item.source.stop()
         }
+    }
+
+    // MARK: - Transform & Crop Controls
+    public var selectedItem: SceneItem? {
+        sceneItems.first(where: { $0.id == selectedItemID })
+    }
+
+    public func fitSelectedItem() {
+        guard let item = selectedItem else { return }
+        item.fitToCanvas(canvasWidth: canvasWidth, canvasHeight: canvasHeight)
+        worker.setSceneItems(sceneItems)
+        objectWillChange.send()
+    }
+
+    public func fillAndCropSelectedItem() {
+        guard let item = selectedItem else { return }
+        item.fillAndCrop(canvasWidth: canvasWidth, canvasHeight: canvasHeight)
+        worker.setSceneItems(sceneItems)
+        objectWillChange.send()
+    }
+
+    public func resetSelectedItem() {
+        guard let item = selectedItem else { return }
+        item.resetTransform()
+        worker.setSceneItems(sceneItems)
+        objectWillChange.send()
+    }
+
+    public func moveSelectedItem(dx: CGFloat, dy: CGFloat) {
+        guard let item = selectedItem else { return }
+        item.move(dx: dx, dy: dy)
+        worker.setSceneItems(sceneItems)
+        objectWillChange.send()
+    }
+
+    public func updateSceneItems() {
+        worker.setSceneItems(sceneItems)
+        objectWillChange.send()
     }
 }

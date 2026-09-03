@@ -5,13 +5,15 @@ import CoreMedia
 import simd
 
 public struct LayerUniforms {
-    public var rect: SIMD4<Float>    // x, y, width, height in normalized [0, 1]
+    public var rect: SIMD4<Float>     // x, y, width, height in normalized [0, 1]
+    public var cropRect: SIMD4<Float> // u, v, width, height in normalized [0, 1]
     public var opacity: Float
     public var flipY: Float
     public var padding: SIMD2<Float> = .zero
 
-    public init(rect: SIMD4<Float>, opacity: Float, flipY: Float = 1.0) {
+    public init(rect: SIMD4<Float>, cropRect: SIMD4<Float> = SIMD4<Float>(0, 0, 1, 1), opacity: Float, flipY: Float = 1.0) {
         self.rect = rect
+        self.cropRect = cropRect
         self.opacity = opacity
         self.flipY = flipY
     }
@@ -169,6 +171,7 @@ public final class MetalSceneRenderer: @unchecked Sendable {
 
             var uniforms = LayerUniforms(
                 rect: SIMD4<Float>(Float(item.rect.origin.x), Float(item.rect.origin.y), Float(item.rect.size.width), Float(item.rect.size.height)),
+                cropRect: SIMD4<Float>(Float(item.cropRect.origin.x), Float(item.cropRect.origin.y), Float(item.cropRect.size.width), Float(item.cropRect.size.height)),
                 opacity: item.opacity,
                 flipY: 1.0
             )

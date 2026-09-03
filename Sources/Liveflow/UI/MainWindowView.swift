@@ -127,7 +127,7 @@ public struct MainWindowView: View {
         switch engine.status {
         case .idle: return .gray
         case .connecting: return .yellow
-        case .streaming: return .green
+        case .streaming: return engine.isDryRunTest ? .cyan : .green
         case .error: return .red
         }
     }
@@ -136,7 +136,7 @@ public struct MainWindowView: View {
         switch engine.status {
         case .idle: return "STANDBY"
         case .connecting: return "CONNECTING..."
-        case .streaming: return "LIVE"
+        case .streaming: return engine.isDryRunTest ? "TEST MODE (PIPELINE OK)" : "LIVE"
         case .error(let msg): return "ERROR: \(msg)"
         }
     }

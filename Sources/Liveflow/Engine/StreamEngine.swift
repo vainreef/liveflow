@@ -5,6 +5,7 @@ import Metal
 import Combine
 import QuartzCore
 import RTMPHaishinKit
+import AVFoundation
 
 public enum StreamStatus: Equatable, Sendable {
     case idle
@@ -17,8 +18,19 @@ public enum StreamStatus: Equatable, Sendable {
 /// Never blocks or is blocked by the MainActor / UI thread.
 public final class RenderLoopWorker: @unchecked Sendable {
     public let sceneRenderer: MetalSceneRenderer
-    public let streamOutput: StreamOutput
+    public var streamOutput: StreamOutput
     public let targetFPS: Int
+
+    public func setStreamOutput(_ output: StreamOutput) {
+        lock.withLock {
+            self.streamOutput = output
+        }
+    }
+
+    public func sendAudio(buffer: AVAudioBuffer, when: AVAudioTime) {
+        let output: StreamOutput = lock.withLock { self.streamOutput }
+        output.sendAudio(buffer: buffer, when: when)
+    }
 
     private let renderQueue = DispatchQueue(label: "com.liveflow.renderloop", qos: .userInteractive)
     private var renderTimer: DispatchSourceTimer?
@@ -115,8 +127,14 @@ public final class StreamEngine: ObservableObject {
     @Published public var hasScreenPermission: Bool = true
     @Published public var lastErrorMessage: String? = nil
 
-    @Published public var rtmpURL: String = "rtmp://127.0.0.1:19350/live"
-    @Published public var streamKey: String = "test"
+    @Published public var rtmpURL: String = ""
+    @Published public var streamKey: String = ""
+    @Published public var isDryRunTest: Bool = false
+
+    public var isTestMode: Bool {
+        rtmpURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     public let canvasWidth: Int = 1920
     public let canvasHeight: Int = 1080
     public let targetFPS: Int = 60
@@ -124,7 +142,7 @@ public final class StreamEngine: ObservableObject {
 
     public let worker: RenderLoopWorker
     private var videoEncoder: VideoToolboxEncoder?
-    private let streamOutput: StreamOutput
+    private var streamOutput: StreamOutput
     private let audioEngine = AudioEngine()
     private var cancellables = Set<AnyCancellable>()
 
@@ -165,9 +183,9 @@ public final class StreamEngine: ObservableObject {
     }
 
     private func setupAudio() {
-        let output = self.streamOutput
+        let worker = self.worker
         audioEngine.setOutputHandler { buffer, time in
-            output.sendAudio(buffer: buffer, when: time)
+            worker.sendAudio(buffer: buffer, when: time)
         }
         try? audioEngine.start()
     }
@@ -192,11 +210,14 @@ public final class StreamEngine: ObservableObject {
     public func startStreaming() async {
         guard !isLive else { return }
         status = .connecting
+        lastErrorMessage = nil
 
-        guard let url = URL(string: rtmpURL) else {
-            status = .error("Invalid RTMP URL")
-            return
-        }
+        let testMode = isTestMode
+        isDryRunTest = testMode
+
+        let targetOutput: StreamOutput = testMode ? DryRunStreamOutput() : RTMPStreamOutput()
+        self.streamOutput = targetOutput
+        self.worker.setStreamOutput(targetOutput)
 
         // 1. Prepare VideoToolbox Hardware Encoder
         let encoder = VideoToolboxEncoder(
@@ -205,22 +226,30 @@ public final class StreamEngine: ObservableObject {
             fps: Int32(targetFPS),
             bitRate: Int32(targetBitrateKbps * 1000)
         )
-        let output = self.streamOutput
-        encoder.setOutputHandler { sampleBuffer in
-            output.sendVideo(sampleBuffer: sampleBuffer)
+        encoder.setOutputHandler { [weak targetOutput] sampleBuffer in
+            targetOutput?.sendVideo(sampleBuffer: sampleBuffer)
         }
 
         do {
             try encoder.prepare()
             self.videoEncoder = encoder
 
-            // 2. Connect to RTMP
-            try await streamOutput.connect(url: url, streamKey: streamKey)
+            // 2. Connect
+            if testMode {
+                try await targetOutput.connect(url: URL(string: "http://localhost")!, streamKey: nil)
+            } else {
+                let cleanURL = rtmpURL.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard let url = URL(string: cleanURL) else {
+                    status = .error("Invalid RTMP URL format")
+                    return
+                }
+                try await targetOutput.connect(url: url, streamKey: streamKey)
+            }
 
             self.isLive = true
             self.status = .streaming
             self.worker.setLive(isLive: true, encoder: encoder)
-            print("[StreamEngine] Live streaming started successfully!")
+            print("[StreamEngine] \(testMode ? "Pipeline self-check test" : "Live stream") started successfully!")
         } catch let error as RTMPConnection.Error {
             let message: String
             switch error {
@@ -259,11 +288,12 @@ public final class StreamEngine: ObservableObject {
         guard isLive else { return }
         print("[StreamEngine] Stopping live stream...")
         isLive = false
+        isDryRunTest = false
+        status = .idle
         worker.setLive(isLive: false, encoder: nil)
         videoEncoder?.invalidate()
         videoEncoder = nil
         await streamOutput.disconnect()
-        status = .idle
         stats = StreamStats()
     }
 

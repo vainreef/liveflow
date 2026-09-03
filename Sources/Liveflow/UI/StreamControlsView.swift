@@ -193,15 +193,35 @@ public struct StreamControlsView: View {
             VStack(alignment: .leading, spacing: 8) {
                 // Top: Stream Destination
                 VStack(alignment: .leading, spacing: 5) {
-                    Label("Stream Destination", systemImage: "antenna.radiowaves.left.and.right")
-                        .font(.system(size: 13, weight: .bold))
+                    HStack {
+                        Label("Stream Destination", systemImage: "antenna.radiowaves.left.and.right")
+                            .font(.system(size: 13, weight: .bold))
+                        Spacer()
+                        if engine.isTestMode {
+                            Text("Self-Check Test Mode")
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundColor(.indigo)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.indigo.opacity(0.12))
+                                .cornerRadius(4)
+                        } else {
+                            Text("RTMP Live")
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundColor(.blue)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.blue.opacity(0.12))
+                                .cornerRadius(4)
+                        }
+                    }
 
                     HStack(spacing: 8) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Server URL:")
                                 .font(.system(size: 10))
                                 .foregroundColor(.secondary)
-                            TextField("rtmp://...", text: $engine.rtmpURL)
+                            TextField("rtmp://... (Leave empty to test)", text: $engine.rtmpURL)
                                 .textFieldStyle(.roundedBorder)
                                 .controlSize(.small)
                                 .disabled(engine.isLive)
@@ -211,7 +231,7 @@ public struct StreamControlsView: View {
                             Text("Stream Key:")
                                 .font(.system(size: 10))
                                 .foregroundColor(.secondary)
-                            SecureField("key", text: $engine.streamKey)
+                            SecureField("key (Optional)", text: $engine.streamKey)
                                 .textFieldStyle(.roundedBorder)
                                 .controlSize(.small)
                                 .disabled(engine.isLive)
@@ -220,7 +240,7 @@ public struct StreamControlsView: View {
 
                     HStack(alignment: .center, spacing: 14) {
                         VStack(alignment: .leading, spacing: 1) {
-                            Text("Stream Spec")
+                            Text(engine.isTestMode ? "Hardware Pipeline" : "Stream Spec")
                                 .font(.system(size: 9))
                                 .foregroundColor(.secondary)
                             Text("1080p60 · 15 Mbps")
@@ -239,14 +259,14 @@ public struct StreamControlsView: View {
                             }
                         } label: {
                             HStack(spacing: 6) {
-                                Image(systemName: engine.isLive ? "stop.fill" : "play.fill")
-                                Text(engine.isLive ? "Stop Streaming" : "Start Streaming")
+                                Image(systemName: engine.isLive ? "stop.fill" : (engine.isTestMode ? "waveform.badge.magnifyingglass" : "play.fill"))
+                                Text(engine.isLive ? (engine.isDryRunTest ? "Stop Test" : "Stop Streaming") : (engine.isTestMode ? "Test Stream" : "Start Streaming"))
                                     .fontWeight(.bold)
                             }
                             .frame(minWidth: 140, minHeight: 28)
                         }
                         .buttonStyle(.borderedProminent)
-                        .tint(engine.isLive ? .red : .blue)
+                        .tint(engine.isLive ? .red : (engine.isTestMode ? .indigo : .blue))
                     }
                 }
 

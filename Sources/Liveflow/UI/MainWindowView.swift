@@ -13,7 +13,7 @@ public struct MainWindowView: View {
             let windowHeight = geo.size.height
             // Monitor height is strictly calculated from width to lock 16:9 and eliminate black bars
             let monitorHeight = windowWidth * (9.0 / 16.0)
-            let bottomHeight = max(130.0, windowHeight - monitorHeight - 7.0)
+            let bottomHeight = max(130.0, windowHeight - monitorHeight - 1.0)
 
             VStack(spacing: 0) {
                 // Permission Banner (if needed)
@@ -110,15 +110,10 @@ public struct MainWindowView: View {
                 .frame(width: windowWidth, height: monitorHeight)
                 .clipped()
 
-                // ========================================================
-                // 2. Interactive Draggable Splitter Bar
-                // ========================================================
-                SplitterBar { deltaY in
-                    WindowManager.shared.adjustBottomPanelHeight(deltaY: deltaY)
-                }
+                Divider()
 
                 // ========================================================
-                // 3. Bottom Section: All Control Panels
+                // 2. Bottom Section: All Control Panels
                 // ========================================================
                 StreamControlsView(engine: engine)
                     .frame(width: windowWidth, height: bottomHeight)
@@ -157,36 +152,5 @@ public struct MainWindowView: View {
     private func formatBytes(_ bytes: UInt64) -> String {
         let mb = Double(bytes) / (1024.0 * 1024.0)
         return String(format: "%.1f MB", mb)
-    }
-}
-
-struct SplitterBar: View {
-    var onDrag: (CGFloat) -> Void
-
-    var body: some View {
-        ZStack {
-            Rectangle()
-                .fill(Color(NSColor.separatorColor))
-                .frame(height: 1)
-
-            Capsule()
-                .fill(Color.secondary.opacity(0.45))
-                .frame(width: 36, height: 4)
-        }
-        .frame(height: 7)
-        .contentShape(Rectangle())
-        .onHover { hovering in
-            if hovering {
-                NSCursor.resizeUpDown.push()
-            } else {
-                NSCursor.pop()
-            }
-        }
-        .gesture(
-            DragGesture(minimumDistance: 1)
-                .onChanged { gesture in
-                    onDrag(gesture.translation.height * 0.15)
-                }
-        )
     }
 }

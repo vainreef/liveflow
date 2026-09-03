@@ -1,22 +1,53 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <!-- Standard white macOS tile with smooth shadow styling -->
-  <rect x="32" y="32" width="960" height="960" rx="248" fill="#FFFFFF"/>
-  
-  <!-- Blue squircle inner tile -->
-  <rect x="160" y="160" width="704" height="704" rx="198" fill="#4E73F3"/>
-  <rect x="161.5" y="161.5" width="701" height="701" rx="196.5" fill="none" stroke="#2448C5" stroke-opacity="0.7" stroke-width="3"/>
-  
-  <!-- Top gloss reflection -->
-  <path d="M344 174h304c98 0 178 80 178 178v35c-146-55-332-53-456 37V174Z" fill="#FFFFFF" opacity="0.13"/>
+  <defs>
+    <!-- Deep premium dark gradient -->
+    <linearGradient id="bgDark" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#24252B"/>
+      <stop offset="35%" stop-color="#16171B"/>
+      <stop offset="100%" stop-color="#0B0C0E"/>
+    </linearGradient>
 
-  <!-- Freevian F shifted slightly to leave room for live streaming broadcast waves -->
-  <g transform="translate(-24, 16)">
-    <!-- Freevian F -->
-    <path transform="translate(512 512) scale(1.08) translate(-512 -512)" d="M365 335h280v88H465v88h155v84H465v150H365V335Z" fill="#FFFFFF"/>
-    <path transform="translate(512 512) scale(1.08) translate(-512 -512)" d="M365 335h280v24H389c-13 0-24 11-24 24v-48Z" fill="#FFFFFF" opacity="0.65"/>
-    
-    <!-- Live broadcast signal waves radiating from top-right -->
-    <path d="M 685 330 A 45 45 0 0 1 725 395" fill="none" stroke="#FFFFFF" stroke-width="22" stroke-linecap="round"/>
-    <path d="M 720 295 A 90 90 0 0 1 795 425" fill="none" stroke="#FFFFFF" stroke-width="22" stroke-linecap="round" opacity="0.85"/>
+    <!-- Subtle edge highlight for macOS depth -->
+    <linearGradient id="borderGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#484A54" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#1F2025" stop-opacity="0.5"/>
+    </linearGradient>
+
+    <!-- Sleek curved gloss reflection -->
+    <linearGradient id="gloss" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.10"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Standard macOS squircle tile -->
+  <rect x="36" y="36" width="952" height="952" rx="224" fill="url(#bgDark)"/>
+  <rect x="37.5" y="37.5" width="949" height="949" rx="222.5" fill="none" stroke="url(#borderGrad)" stroke-width="3"/>
+
+  <!-- Top diagonal gloss reflection -->
+  <path d="M 220 42 h 380 c 190 0 350 140 370 330 c -170 -60 -380 -50 -590 60 L 160 260 c 0 -120 90 -218 218 -218 Z" fill="url(#gloss)"/>
+
+  <!-- Live Streaming Radio Broadcast Waves (White) -->
+  <g fill="none" stroke="#FFFFFF" stroke-linecap="round">
+    <!-- Center Broadcasting Core -->
+    <circle cx="512" cy="512" r="48" fill="#FFFFFF" stroke="none"/>
+
+    <!-- Inner Wave Pair -->
+    <!-- Left Inner -->
+    <path d="M 425 409 A 135 135 0 0 0 425 615" stroke-width="42"/>
+    <!-- Right Inner -->
+    <path d="M 599 409 A 135 135 0 0 1 599 615" stroke-width="42"/>
+
+    <!-- Middle Wave Pair -->
+    <!-- Left Middle -->
+    <path d="M 367 340 A 225 225 0 0 0 367 684" stroke-width="42"/>
+    <!-- Right Middle -->
+    <path d="M 657 340 A 225 225 0 0 1 657 684" stroke-width="42"/>
+
+    <!-- Outer Wave Pair -->
+    <!-- Left Outer -->
+    <path d="M 310 271 A 315 315 0 0 0 310 753" stroke-width="42"/>
+    <!-- Right Outer -->
+    <path d="M 714 271 A 315 315 0 0 1 714 753" stroke-width="42"/>
   </g>
 </svg>

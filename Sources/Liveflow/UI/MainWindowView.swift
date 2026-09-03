@@ -40,16 +40,16 @@ public struct MainWindowView: View {
                 HStack(spacing: 12) {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundColor(.yellow)
-                    Text("Liveflow 需要「屏幕与系统音频录制」权限以捕获显示器画面。")
+                    Text("Screen & System Audio Recording permission is required to capture display.")
                         .font(.system(size: 12, weight: .medium))
                     Spacer()
-                    Button("打开系统设置授予权限") {
+                    Button("Open System Settings") {
                         PermissionHelper.requestScreenRecordingPermission()
                         PermissionHelper.openScreenRecordingSettings()
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
-                    Button("重新检查") {
+                    Button("Check Again") {
                         Task { await engine.refreshDisplays() }
                     }
                     .buttonStyle(.bordered)
@@ -70,7 +70,7 @@ public struct MainWindowView: View {
                         .font(.system(size: 12))
                         .foregroundColor(.red)
                     Spacer()
-                    Button("忽略") {
+                    Button("Dismiss") {
                         engine.lastErrorMessage = nil
                     }
                     .controlSize(.small)

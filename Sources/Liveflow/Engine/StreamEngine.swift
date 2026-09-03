@@ -257,7 +257,7 @@ public final class StreamEngine: ObservableObject {
         if !PermissionHelper.hasScreenRecordingPermission {
             PermissionHelper.requestScreenRecordingPermission()
             PermissionHelper.openScreenRecordingSettings()
-            lastErrorMessage = "请在系统设置中允许 Liveflow 屏幕录制权限，然后重新添加显示器。"
+            lastErrorMessage = "Please grant Screen Recording permission in System Settings and try again."
             return
         }
 
@@ -283,7 +283,7 @@ public final class StreamEngine: ObservableObject {
             worker.setSceneItems(sceneItems)
             lastErrorMessage = nil
         } catch {
-            lastErrorMessage = "启动屏幕捕获失败: \(error.localizedDescription)"
+            lastErrorMessage = "Failed to start screen capture: \(error.localizedDescription)"
             print("[StreamEngine] addScreenCaptureSource error: \(error)")
         }
     }

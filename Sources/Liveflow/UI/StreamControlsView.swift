@@ -12,33 +12,33 @@ public struct StreamControlsView: View {
                         .font(.headline)
                     Spacer()
                     Menu {
-                        Section("🖥️ 屏幕捕获 (Capture Screen)") {
+                        Section("Displays") {
                             if engine.availableDisplays.isEmpty {
-                                Button("未检测到显示器 (点击刷新)") {
+                                Button("No Displays Detected (Click to Refresh)") {
                                     Task { await engine.refreshDisplays() }
                                 }
                             } else {
                                 ForEach(engine.availableDisplays) { display in
-                                    Button("🖥️ \(display.name)") {
+                                    Button(display.name) {
                                         Task { await engine.addScreenCaptureSource(display: display) }
                                     }
                                 }
                             }
                         }
 
-                        Section("🎥 其他画面源 (Other Sources)") {
-                            Button("📷 摄像头 (PIP 画中画)") {
+                        Section("Other Sources") {
+                            Button("Camera (PIP)") {
                                 Task { try? await engine.addCameraSource() }
                             }
 
-                            Button("🎨 测试彩条 (Color Bars)") {
+                            Button("Test Pattern") {
                                 Task { await engine.addTestPatternSource() }
                             }
                         }
 
                         Divider()
 
-                        Button("🔄 刷新显示器列表") {
+                        Button("Refresh Displays") {
                             Task { await engine.refreshDisplays() }
                         }
                     } label: {
@@ -52,6 +52,13 @@ public struct StreamControlsView: View {
                     VStack(spacing: 6) {
                         ForEach(engine.sceneItems) { item in
                             HStack {
+                                Text(item.name)
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundColor(item.isEnabled ? .primary : .secondary)
+                                    .lineLimit(1)
+
+                                Spacer()
+
                                 Button {
                                     item.isEnabled.toggle()
                                 } label: {
@@ -59,12 +66,6 @@ public struct StreamControlsView: View {
                                         .foregroundColor(item.isEnabled ? .accentColor : .secondary)
                                 }
                                 .buttonStyle(.plain)
-
-                                Text(item.name)
-                                    .font(.system(size: 12, weight: .medium))
-                                    .lineLimit(1)
-
-                                Spacer()
 
                                 Button {
                                     Task { await engine.removeSceneItem(id: item.id) }

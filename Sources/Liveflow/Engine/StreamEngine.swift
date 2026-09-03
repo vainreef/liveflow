@@ -4,6 +4,7 @@ import CoreVideo
 import Metal
 import Combine
 import QuartzCore
+import RTMPHaishinKit
 
 public enum StreamStatus: Equatable, Sendable {
     case idle
@@ -220,6 +221,31 @@ public final class StreamEngine: ObservableObject {
             self.status = .streaming
             self.worker.setLive(isLive: true, encoder: encoder)
             print("[StreamEngine] Live streaming started successfully!")
+        } catch let error as RTMPConnection.Error {
+            let message: String
+            switch error {
+            case .invalidState:
+                message = "Invalid RTMP state. Please retry."
+            case .unsupportedCommand(let cmd):
+                message = "Cannot connect: Invalid RTMP URL '\(cmd)'. Please check Server URL."
+            case .connectionTimedOut:
+                message = "Connection timed out. Server unreachable."
+            case .socketErrorOccurred(let sockErr):
+                if let sockErr = sockErr {
+                    message = "Cannot connect to RTMP server (\(sockErr.localizedDescription)). Ensure server is running."
+                } else {
+                    message = "Cannot connect to RTMP server (Connection refused). Ensure server is running."
+                }
+            case .requestTimedOut:
+                message = "RTMP request timed out."
+            case .requestFailed(let resp):
+                message = "RTMP request rejected by server: \(resp.status?.description ?? "Failed"). Check stream key."
+            }
+            self.status = .error(message)
+            self.videoEncoder?.invalidate()
+            self.videoEncoder = nil
+            self.worker.setLive(isLive: false, encoder: nil)
+            print("[StreamEngine] Failed to start stream: \(message)")
         } catch {
             self.status = .error(error.localizedDescription)
             self.videoEncoder?.invalidate()

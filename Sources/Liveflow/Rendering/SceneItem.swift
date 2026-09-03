@@ -152,6 +152,8 @@ public final class SceneItem: Identifiable, @unchecked Sendable {
     }
 
     // MARK: - Pixel & Percentage Accessors for Property Inspector
+    public var isScaleLocked: Bool = true
+
     public var pixelX: Double {
         get { Double(rect.origin.x * 1920.0) }
         set { rect.origin.x = CGFloat(newValue / 1920.0) }
@@ -160,6 +162,31 @@ public final class SceneItem: Identifiable, @unchecked Sendable {
         get { Double(rect.origin.y * 1080.0) }
         set { rect.origin.y = CGFloat(newValue / 1080.0) }
     }
+
+    public var scaleXPercent: Double {
+        get { Double(rect.size.width * 100.0) }
+        set {
+            let newW = CGFloat(max(1.0, newValue) / 100.0)
+            if isScaleLocked && rect.size.width > 0.0001 {
+                let ratio = newW / rect.size.width
+                rect.size.height = max(0.001, rect.size.height * ratio)
+            }
+            rect.size.width = newW
+        }
+    }
+
+    public var scaleYPercent: Double {
+        get { Double(rect.size.height * 100.0) }
+        set {
+            let newH = CGFloat(max(1.0, newValue) / 100.0)
+            if isScaleLocked && rect.size.height > 0.0001 {
+                let ratio = newH / rect.size.height
+                rect.size.width = max(0.001, rect.size.width * ratio)
+            }
+            rect.size.height = newH
+        }
+    }
+
     public var pixelWidth: Double {
         get { Double(rect.size.width * 1920.0) }
         set { rect.size.width = CGFloat(max(10.0, newValue) / 1920.0) }
@@ -211,6 +238,7 @@ public struct SceneItemTransformSnapshot: Equatable, Sendable {
     public var cropRight: CGFloat
     public var cropTop: CGFloat
     public var cropBottom: CGFloat
+    public var isScaleLocked: Bool
     public var opacity: Float
 
     public init(
@@ -220,6 +248,7 @@ public struct SceneItemTransformSnapshot: Equatable, Sendable {
         cropRight: CGFloat = 0.0,
         cropTop: CGFloat = 0.0,
         cropBottom: CGFloat = 0.0,
+        isScaleLocked: Bool = true,
         opacity: Float = 1.0
     ) {
         self.rect = rect
@@ -228,6 +257,7 @@ public struct SceneItemTransformSnapshot: Equatable, Sendable {
         self.cropRight = cropRight
         self.cropTop = cropTop
         self.cropBottom = cropBottom
+        self.isScaleLocked = isScaleLocked
         self.opacity = opacity
     }
 
@@ -238,6 +268,7 @@ public struct SceneItemTransformSnapshot: Equatable, Sendable {
         self.cropRight = item.cropRight
         self.cropTop = item.cropTop
         self.cropBottom = item.cropBottom
+        self.isScaleLocked = item.isScaleLocked
         self.opacity = item.opacity
     }
 
@@ -248,6 +279,7 @@ public struct SceneItemTransformSnapshot: Equatable, Sendable {
         item.cropRight = self.cropRight
         item.cropTop = self.cropTop
         item.cropBottom = self.cropBottom
+        item.isScaleLocked = self.isScaleLocked
         item.opacity = self.opacity
     }
 }

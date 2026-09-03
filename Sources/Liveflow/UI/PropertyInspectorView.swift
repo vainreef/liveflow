@@ -119,7 +119,7 @@ public struct ScrubbableNumberField: View {
             Text(label)
                 .font(.system(size: 10, weight: .bold))
                 .foregroundColor(.secondary)
-                .frame(width: 38, alignment: .leading)
+                .frame(width: 44, alignment: .leading)
 
             ZStack(alignment: .trailing) {
                 if isEditing {
@@ -347,31 +347,51 @@ public struct PropertyInspectorView: View {
                                 }
                             }
 
-                            HStack(spacing: 8) {
+                            HStack(spacing: 4) {
                                 ScrubbableNumberField(
-                                    label: "W",
+                                    label: "Scale X",
                                     value: Binding(
-                                        get: { item.pixelWidth },
-                                        set: { item.pixelWidth = $0 }
+                                        get: { item.scaleXPercent },
+                                        set: { item.scaleXPercent = $0 }
                                     ),
-                                    range: 20...3840,
+                                    range: 1...1000,
                                     step: 1.0,
-                                    unit: "px",
+                                    unit: "%",
                                     onDragStart: { recordDragStart(item: item) },
                                     onDragEnd: { recordDragEnd(item: item) }
                                 ) {
                                     recordChange(item: item)
                                 }
 
+                                Button {
+                                    item.isScaleLocked.toggle()
+                                    engine.objectWillChange.send()
+                                } label: {
+                                    Image(systemName: item.isScaleLocked ? "link" : "link.badge.plus")
+                                        .font(.system(size: 10, weight: .bold))
+                                        .foregroundColor(item.isScaleLocked ? .blue : .secondary.opacity(0.6))
+                                        .frame(width: 20, height: 20)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 3)
+                                                .fill(item.isScaleLocked ? Color.blue.opacity(0.12) : Color.clear)
+                                        )
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 3)
+                                                .stroke(item.isScaleLocked ? Color.blue.opacity(0.3) : Color.secondary.opacity(0.2), lineWidth: 1)
+                                        )
+                                }
+                                .buttonStyle(.plain)
+                                .help(item.isScaleLocked ? "Uniform Scale: Locked (Aspect ratio linked)" : "Uniform Scale: Unlocked (Adjust X and Y independently)")
+
                                 ScrubbableNumberField(
-                                    label: "H",
+                                    label: "Scale Y",
                                     value: Binding(
-                                        get: { item.pixelHeight },
-                                        set: { item.pixelHeight = $0 }
+                                        get: { item.scaleYPercent },
+                                        set: { item.scaleYPercent = $0 }
                                     ),
-                                    range: 20...2160,
+                                    range: 1...1000,
                                     step: 1.0,
-                                    unit: "px",
+                                    unit: "%",
                                     onDragStart: { recordDragStart(item: item) },
                                     onDragEnd: { recordDragEnd(item: item) }
                                 ) {

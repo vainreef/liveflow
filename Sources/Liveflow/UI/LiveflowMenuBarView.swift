@@ -21,14 +21,14 @@ public struct LiveflowMenuBarView: View {
 
             Divider()
 
-            Button("Show Main Window") {
+            Button("Show Main Window (⌥⌘0)") {
                 WindowManager.shared.showMainWindow()
             }
-            .keyboardShortcut("0", modifiers: [.command])
+            .keyboardShortcut("0", modifiers: [.command, .option])
 
             Divider()
 
-            Button(engine.isLive ? "Stop Streaming" : "Start Streaming") {
+            Button(engine.isLive ? "Stop Streaming (⌥⌘R)" : "Start Streaming (⌥⌘R)") {
                 Task {
                     if engine.isLive {
                         await engine.stopStreaming()
@@ -37,9 +37,9 @@ public struct LiveflowMenuBarView: View {
                     }
                 }
             }
-            .keyboardShortcut("r", modifiers: [.command])
+            .keyboardShortcut("r", modifiers: [.command, .option])
 
-            Button("Refresh Displays") {
+            Button("Refresh Displays (⇧⌘R)") {
                 Task { await engine.refreshDisplays() }
             }
             .keyboardShortcut("r", modifiers: [.command, .shift])
@@ -52,7 +52,7 @@ public struct LiveflowMenuBarView: View {
                 }
             }
 
-            Button("Quit Liveflow") {
+            Button("Quit Liveflow (⌘Q)") {
                 NSApp.terminate(nil)
             }
             .keyboardShortcut("q", modifiers: [.command])

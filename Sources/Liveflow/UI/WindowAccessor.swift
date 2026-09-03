@@ -13,20 +13,32 @@ public final class WindowManager: NSObject, NSWindowDelegate {
     }
 
     public func showMainWindow() {
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
         if let window = mainWindow {
             window.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
         }
     }
 
     public func hideMainWindow() {
         mainWindow?.orderOut(nil)
+        NSApp.setActivationPolicy(.accessory)
+    }
+
+    public func toggleMainWindow() {
+        if let window = mainWindow, window.isVisible, NSApp.isActive {
+            hideMainWindow()
+        } else {
+            showMainWindow()
+        }
     }
 
     // MARK: - NSWindowDelegate
     public func windowShouldClose(_ sender: NSWindow) -> Bool {
         sender.orderOut(nil)
-        return false // Do not destroy window; hide to menu bar
+        // Hide from macOS Dock when window is closed
+        NSApp.setActivationPolicy(.accessory)
+        return false
     }
 }
 

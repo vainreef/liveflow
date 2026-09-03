@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import Carbon
 
 @main
 struct LiveflowApp: App {
@@ -10,6 +11,9 @@ struct LiveflowApp: App {
         Window("Liveflow", id: "mainWindow") {
             MainWindowView(engine: engine)
                 .background(WindowAccessor())
+                .onAppear {
+                    appDelegate.engine = engine
+                }
         }
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unified)
@@ -50,7 +54,7 @@ struct LiveflowApp: App {
                         }
                     }
                 }
-                .keyboardShortcut("r", modifiers: [.command])
+                .keyboardShortcut("r", modifiers: [.command, .option])
 
                 Divider()
 
@@ -65,7 +69,7 @@ struct LiveflowApp: App {
                 Button("Show Main Window") {
                     WindowManager.shared.showMainWindow()
                 }
-                .keyboardShortcut("0", modifiers: [.command])
+                .keyboardShortcut("0", modifiers: [.command, .option])
             }
 
             // 5. Help Menu with Cmd + ? navigation
@@ -100,10 +104,16 @@ struct LiveflowApp: App {
     }
 }
 
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    weak var engine: StreamEngine?
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
+
+        // Setup system-wide Global HotKeys (works anywhere, even when hidden from Dock)
+        setupGlobalHotKeys()
 
         // Check if headless test mode is requested via command line
         let args = CommandLine.arguments
@@ -116,6 +126,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 return 5.0
             }()
             runHeadlessStreamTest(targetURL: targetURL, duration: durationSeconds)
+        }
+    }
+
+    private func setupGlobalHotKeys() {
+        // Global HotKey 1: Option + Cmd + 0 (Toggle / Show Main Window anywhere in macOS)
+        GlobalHotKeyManager.shared.register(
+            id: 1,
+            keyCode: UInt32(kVK_ANSI_0),
+            modifiers: UInt32(cmdKey | optionKey)
+        ) {
+            WindowManager.shared.toggleMainWindow()
+        }
+
+        // Global HotKey 2: Option + Cmd + R (Toggle Start/Stop Streaming anywhere in macOS)
+        GlobalHotKeyManager.shared.register(
+            id: 2,
+            keyCode: UInt32(kVK_ANSI_R),
+            modifiers: UInt32(cmdKey | optionKey)
+        ) { [weak self] in
+            guard let engine = self?.engine else { return }
+            Task {
+                if engine.isLive {
+                    await engine.stopStreaming()
+                } else {
+                    await engine.startStreaming()
+                }
+            }
         }
     }
 

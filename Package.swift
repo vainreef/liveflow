@@ -2,24 +2,24 @@
 import PackageDescription
 
 let package = Package(
-    name: "Livestreamer",
+    name: "Liveflow",
     platforms: [
         .macOS(.v14)
     ],
     products: [
-        .executable(name: "Livestreamer", targets: ["Livestreamer"])
+        .executable(name: "Liveflow", targets: ["Liveflow"])
     ],
     dependencies: [
         .package(url: "https://github.com/shogo4405/HaishinKit.swift.git", from: "2.2.5")
     ],
     targets: [
         .executableTarget(
-            name: "Livestreamer",
+            name: "Liveflow",
             dependencies: [
                 .product(name: "HaishinKit", package: "HaishinKit.swift"),
                 .product(name: "RTMPHaishinKit", package: "HaishinKit.swift")
             ],
-            path: "Sources/Livestreamer",
+            path: "Sources/Liveflow",
             exclude: [
                 "Rendering/Shaders.metal"
             ]

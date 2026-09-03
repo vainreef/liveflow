@@ -6,18 +6,18 @@ ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 PORT=19350
 RTMP_URL="rtmp://127.0.0.1:$PORT/live/test"
-OUTPUT_FILE="/tmp/livestreamer_test_out.flv"
+OUTPUT_FILE="/tmp/liveflow_test_out.flv"
 rm -f "$OUTPUT_FILE"
 
 echo "========================================"
-echo " Livestreamer End-to-End Push Stream Test"
+echo " Liveflow End-to-End Push Stream Test"
 echo "========================================"
 echo "Target URL: $RTMP_URL"
 
-echo "1. Building Livestreamer..."
+echo "1. Building Liveflow..."
 swift build -c debug
 
-BIN="$ROOT_DIR/.build/debug/Livestreamer"
+BIN="$ROOT_DIR/.build/debug/Liveflow"
 
 echo "2. Starting local RTMP ingest server (ffmpeg)..."
 ffmpeg -v info -listen 1 -i "$RTMP_URL" -t 5 -c copy -f flv "$OUTPUT_FILE" -y > /tmp/ffmpeg_rtmp.log 2>&1 &
@@ -33,7 +33,7 @@ trap cleanup EXIT
 # Wait a moment for ffmpeg to bind port
 sleep 1
 
-echo "3. Launching Livestreamer in test-stream mode (duration: 3s)..."
+echo "3. Launching Liveflow in test-stream mode (duration: 3s)..."
 "$BIN" --test-stream "$RTMP_URL" --duration 3
 
 echo "4. Waiting for stream ingest to finish..."
@@ -45,7 +45,7 @@ if [ -f "$OUTPUT_FILE" ] && [ -s "$OUTPUT_FILE" ]; then
     echo "SUCCESS: Recorded stream file size = $FILE_SIZE bytes"
     ffprobe -v error -show_entries stream=codec_name,codec_type,width,height,r_frame_rate -of default=noprint_wrappers=1 "$OUTPUT_FILE"
     echo "========================================"
-    echo " END-TO-END LIVE STREAMING TEST PASSED!"
+    echo " END-TO-END LIVEFLOW STREAMING TEST PASSED!"
     echo "========================================"
     exit 0
 else

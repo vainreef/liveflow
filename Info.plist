@@ -3,9 +3,9 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleIdentifier</key>
-    <string>com.freevian.livestreamer</string>
+    <string>com.freevian.liveflow</string>
     <key>CFBundleName</key>
-    <string>Livestreamer</string>
+    <string>Liveflow</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
@@ -13,9 +13,9 @@
     <key>CFBundleVersion</key>
     <string>1</string>
     <key>CFBundleExecutable</key>
-    <string>Livestreamer</string>
+    <string>Liveflow</string>
     <key>CFBundleIconFile</key>
-    <string>LivestreamerIcon</string>
+    <string>LiveflowIcon</string>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
     <key>NSHighResolutionCapable</key>
@@ -23,8 +23,8 @@
     <key>NSSupportsAutomaticGraphicsSwitching</key>
     <true/>
     <key>NSCameraUsageDescription</key>
-    <string>Livestreamer needs access to your camera for video streaming.</string>
+    <string>Liveflow needs access to your camera for live streaming.</string>
     <key>NSMicrophoneUsageDescription</key>
-    <string>Livestreamer needs access to your microphone for audio streaming.</string>
+    <string>Liveflow needs access to your microphone for live streaming.</string>
 </dict>
 </plist>

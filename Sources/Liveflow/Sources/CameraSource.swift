@@ -11,7 +11,7 @@ public final class CameraSource: NSObject, VideoSource, AVCaptureVideoDataOutput
 
     private let captureSession = AVCaptureSession()
     private let videoOutput = AVCaptureVideoDataOutput()
-    private let queue = DispatchQueue(label: "com.livestreamer.camera", qos: .userInteractive)
+    private let queue = DispatchQueue(label: "com.liveflow.camera", qos: .userInteractive)
 
     private let lock = NSLock()
     private var _latestFrame: VideoFrame?
@@ -47,7 +47,7 @@ public final class CameraSource: NSObject, VideoSource, AVCaptureVideoDataOutput
 
         guard let camera = device else {
             captureSession.commitConfiguration()
-            throw NSError(domain: "Livestreamer", code: -2, userInfo: [NSLocalizedDescriptionKey: "No video camera device available"])
+            throw NSError(domain: "Liveflow", code: -2, userInfo: [NSLocalizedDescriptionKey: "No video camera device available"])
         }
 
         let input = try AVCaptureDeviceInput(device: camera)

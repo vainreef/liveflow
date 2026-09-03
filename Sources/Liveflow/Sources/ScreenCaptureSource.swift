@@ -10,7 +10,7 @@ public final class ScreenCaptureSource: NSObject, VideoSource, SCStreamOutput, S
     public let name: String
 
     private var stream: SCStream?
-    private let queue = DispatchQueue(label: "com.livestreamer.screencapture", qos: .userInteractive)
+    private let queue = DispatchQueue(label: "com.liveflow.screencapture", qos: .userInteractive)
     private let lock = NSLock()
     private var _latestFrame: VideoFrame?
     private var _isRunning = false
@@ -35,7 +35,7 @@ public final class ScreenCaptureSource: NSObject, VideoSource, SCStreamOutput, S
 
         let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
         guard !content.displays.isEmpty else {
-            throw NSError(domain: "Livestreamer", code: -1, userInfo: [NSLocalizedDescriptionKey: "No displays found for ScreenCaptureKit"])
+            throw NSError(domain: "Liveflow", code: -1, userInfo: [NSLocalizedDescriptionKey: "No displays found for ScreenCaptureKit"])
         }
 
         let display = (targetDisplayIndex < content.displays.count) ? content.displays[targetDisplayIndex] : content.displays[0]

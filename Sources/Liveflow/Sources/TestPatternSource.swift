@@ -18,7 +18,7 @@ public final class TestPatternSource: VideoSource, @unchecked Sendable {
 
     private var pixelBufferPool: CVPixelBufferPool?
     private var timer: DispatchSourceTimer?
-    private let queue = DispatchQueue(label: "com.livestreamer.testpattern", qos: .userInteractive)
+    private let queue = DispatchQueue(label: "com.liveflow.testpattern", qos: .userInteractive)
 
     private let lock = NSLock()
     private var _latestFrame: VideoFrame?
@@ -139,13 +139,13 @@ public final class TestPatternSource: VideoSource, @unchecked Sendable {
         context.addPath(path)
         context.fillPath()
 
-        drawText(in: context, text: "LIVESTREAMER LIVE", x: boxX + 22, y: boxY + 28, fontSize: 28, color: CGColor(red: 1, green: 1, blue: 1, alpha: 1))
+        drawText(in: context, text: "LIVEFLOW LIVE", x: boxX + 22, y: boxY + 28, fontSize: 28, color: CGColor(red: 1, green: 1, blue: 1, alpha: 1))
 
         // 4. Top info header banner
         context.setFillColor(CGColor(red: 0.0, green: 0.0, blue: 0.0, alpha: 0.8))
         context.fill(CGRect(x: 0, y: CGFloat(height) - 90, width: CGFloat(width), height: 90))
 
-        drawText(in: context, text: "Apple Silicon Native Live Streaming Engine", x: 30, y: CGFloat(height) - 55, fontSize: 32, color: CGColor(red: 1, green: 1, blue: 1, alpha: 1))
+        drawText(in: context, text: "Liveflow · Apple Silicon Native Live Streaming Engine", x: 30, y: CGFloat(height) - 55, fontSize: 32, color: CGColor(red: 1, green: 1, blue: 1, alpha: 1))
 
         let timeStr = String(format: "Time: %.2fs | Frame: %d | 60 FPS", t, frameIndex)
         drawText(in: context, text: timeStr, x: CGFloat(width) - 520, y: CGFloat(height) - 55, fontSize: 26, color: CGColor(red: 0.7, green: 0.9, blue: 1.0, alpha: 1))

@@ -86,7 +86,7 @@ public final class VideoToolboxEncoder: @unchecked Sendable {
         )
 
         guard status == noErr, let session = session else {
-            throw NSError(domain: "Livestreamer", code: Int(status), userInfo: [NSLocalizedDescriptionKey: "Failed to create VTCompressionSession (code \(status))"])
+            throw NSError(domain: "Liveflow", code: Int(status), userInfo: [NSLocalizedDescriptionKey: "Failed to create VTCompressionSession (code \(status))"])
         }
 
         // Configure properties for live streaming
@@ -101,7 +101,7 @@ public final class VideoToolboxEncoder: @unchecked Sendable {
 
         let prepStatus = VTCompressionSessionPrepareToEncodeFrames(session)
         guard prepStatus == noErr else {
-            throw NSError(domain: "Livestreamer", code: Int(prepStatus), userInfo: [NSLocalizedDescriptionKey: "Failed to prepare VTCompressionSession"])
+            throw NSError(domain: "Liveflow", code: Int(prepStatus), userInfo: [NSLocalizedDescriptionKey: "Failed to prepare VTCompressionSession"])
         }
 
         lock.withLock {

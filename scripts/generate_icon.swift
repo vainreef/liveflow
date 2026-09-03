@@ -1,10 +1,10 @@
 import AppKit
 
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-let svgURL = root.appendingPathComponent("assets/LivestreamerIcon.svg")
-let png1024URL = root.appendingPathComponent("assets/LivestreamerIcon-1024.png")
-let iconsetDir = root.appendingPathComponent("native/LivestreamerIcon.iconset")
-let icnsURL = root.appendingPathComponent("native/LivestreamerIcon.icns")
+let svgURL = root.appendingPathComponent("assets/LiveflowIcon.svg")
+let png1024URL = root.appendingPathComponent("assets/LiveflowIcon-1024.png")
+let iconsetDir = root.appendingPathComponent("native/LiveflowIcon.iconset")
+let icnsURL = root.appendingPathComponent("native/LiveflowIcon.icns")
 
 guard let svgImage = NSImage(contentsOf: svgURL) else {
     print("Error: Failed to load SVG from \(svgURL.path)")

@@ -2,11 +2,11 @@ import SwiftUI
 import AppKit
 
 @main
-struct LivestreamerApp: App {
+struct LiveflowApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     var body: some Scene {
-        WindowGroup {
+        WindowGroup("Liveflow") {
             MainWindowView()
         }
         .windowStyle(.titleBar)
@@ -37,7 +37,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func runHeadlessStreamTest(targetURL: String, duration: Double) {
         Task { @MainActor in
             print("========================================")
-            print("[TestMode] Starting headless stream test...")
+            print("[TestMode] Starting headless stream test for Liveflow...")
             print("[TestMode] Target: \(targetURL)")
             print("[TestMode] Duration: \(duration)s")
             print("========================================")
@@ -58,7 +58,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
             let stats = engine.stats
             print("========================================")
-            print("[TestMode] Test Finished Successfully!")
+            print("[TestMode] Liveflow Test Finished Successfully!")
             print("[TestMode] Average FPS: \(String(format: "%.1f", stats.fps))")
             print("[TestMode] Bitrate: \(String(format: "%.1f", stats.bitrateKbps)) kbps")
             print("[TestMode] Total bytes sent: \(stats.totalBytesSent) bytes")

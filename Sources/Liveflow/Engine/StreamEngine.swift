@@ -19,7 +19,7 @@ public final class RenderLoopWorker: @unchecked Sendable {
     public let streamOutput: StreamOutput
     public let targetFPS: Int
 
-    private let renderQueue = DispatchQueue(label: "com.livestreamer.renderloop", qos: .userInteractive)
+    private let renderQueue = DispatchQueue(label: "com.liveflow.renderloop", qos: .userInteractive)
     private var renderTimer: DispatchSourceTimer?
     private var videoEncoder: VideoToolboxEncoder?
 

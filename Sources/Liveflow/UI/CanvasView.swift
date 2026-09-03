@@ -40,6 +40,10 @@ public final class MTKPreviewView: MTKView, MTKViewDelegate {
     public func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {}
 
     public func draw(in view: MTKView) {
+        guard let window = view.window, window.isVisible, !window.isMiniaturized else {
+            return
+        }
+
         guard let engine = engine,
               let texture = engine.latestPreviewTexture,
               let drawable = view.currentDrawable,
@@ -76,5 +80,12 @@ public struct MetalCanvasRepresentable: NSViewRepresentable {
         MTKPreviewView(engine: engine)
     }
 
-    public func updateNSView(_ nsView: MTKPreviewView, context: Context) {}
+    public func updateNSView(_ nsView: MTKPreviewView, context: Context) {
+        // When streaming, throttle UI preview to 30fps to leave maximum GPU bandwidth for gaming/apps;
+        // In standby preview, render at full 60fps.
+        let targetFPS = engine.isLive ? 30 : 60
+        if nsView.preferredFramesPerSecond != targetFPS {
+            nsView.preferredFramesPerSecond = targetFPS
+        }
+    }
 }

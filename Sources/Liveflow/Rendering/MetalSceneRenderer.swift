@@ -1,6 +1,6 @@
 import Foundation
-import Metal
-import CoreVideo
+@preconcurrency import Metal
+@preconcurrency import CoreVideo
 import CoreMedia
 import simd
 
@@ -88,6 +88,19 @@ public final class MetalSceneRenderer: @unchecked Sendable {
         self.samplerState = device.makeSamplerState(descriptor: samplerDesc)
     }
 
+    private let poolLock = NSLock()
+    private var _externalPixelBufferPool: CVPixelBufferPool?
+
+    public func setExternalPixelBufferPool(_ pool: CVPixelBufferPool?) {
+        poolLock.withLock {
+            _externalPixelBufferPool = pool
+        }
+    }
+
+    public var activePixelBufferPool: CVPixelBufferPool? {
+        poolLock.withLock { _externalPixelBufferPool } ?? outputPixelBufferPool
+    }
+
     private func setupBufferPool() {
         let poolAttrs: [CFString: Any] = [
             kCVPixelBufferPoolMinimumBufferCountKey: 4
@@ -102,9 +115,60 @@ public final class MetalSceneRenderer: @unchecked Sendable {
         CVPixelBufferPoolCreate(kCFAllocatorDefault, poolAttrs as CFDictionary, bufferAttrs as CFDictionary, &outputPixelBufferPool)
     }
 
-    /// Renders the scene into an offscreen IOSurface-backed CVPixelBuffer and Metal texture.
+    /// Asynchronously renders the scene into an offscreen CVPixelBuffer without blocking the calling CPU thread.
+    /// Delivers the rendered buffer and preview texture on GPU completion via addCompletedHandler.
+    public func renderOffscreenAsync(
+        items: [SceneItem],
+        timestamp: CMTime,
+        completion: @escaping @Sendable (CVPixelBuffer, MTLTexture) -> Void
+    ) -> Bool {
+        guard let pool = activePixelBufferPool else { return false }
+        var pixelBuffer: CVPixelBuffer?
+        let status = CVPixelBufferPoolCreatePixelBuffer(kCFAllocatorDefault, pool, &pixelBuffer)
+        guard status == kCVReturnSuccess, let buffer = pixelBuffer else { return false }
+
+        var cvMetalTexture: CVMetalTexture?
+        let cvStatus = CVMetalTextureCacheCreateTextureFromImage(
+            kCFAllocatorDefault,
+            textureCache,
+            buffer,
+            nil,
+            .bgra8Unorm,
+            width,
+            height,
+            0,
+            &cvMetalTexture
+        )
+        guard cvStatus == kCVReturnSuccess,
+              let cvMetalTexture = cvMetalTexture,
+              let targetTexture = CVMetalTextureGetTexture(cvMetalTexture) else {
+            return false
+        }
+
+        let passDesc = MTLRenderPassDescriptor()
+        passDesc.colorAttachments[0].texture = targetTexture
+        passDesc.colorAttachments[0].loadAction = .clear
+        passDesc.colorAttachments[0].clearColor = MTLClearColor(red: 0.05, green: 0.05, blue: 0.07, alpha: 1.0)
+        passDesc.colorAttachments[0].storeAction = .store
+
+        guard let commandBuffer = commandQueue.makeCommandBuffer(),
+              let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: passDesc) else {
+            return false
+        }
+
+        encodeScene(items: items, in: encoder)
+        encoder.endEncoding()
+
+        commandBuffer.addCompletedHandler { _ in
+            completion(buffer, targetTexture)
+        }
+        commandBuffer.commit()
+        return true
+    }
+
+    /// Renders the scene into an offscreen IOSurface-backed CVPixelBuffer and Metal texture synchronously.
     public func renderOffscreen(items: [SceneItem], timestamp: CMTime) -> (CVPixelBuffer, MTLTexture)? {
-        guard let pool = outputPixelBufferPool else { return nil }
+        guard let pool = activePixelBufferPool else { return nil }
         var pixelBuffer: CVPixelBuffer?
         let status = CVPixelBufferPoolCreatePixelBuffer(kCFAllocatorDefault, pool, &pixelBuffer)
         guard status == kCVReturnSuccess, let buffer = pixelBuffer else { return nil }

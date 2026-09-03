@@ -21,6 +21,14 @@ public final class RTMPStreamOutput: StreamOutput, @unchecked Sendable {
     private var lastFrameCount: Int = 0
     private var lastBytesCount: UInt64 = 0
 
+    private enum StreamItem: Sendable {
+        case video(CMSampleBuffer)
+        case audio(AVAudioBuffer, AVAudioTime)
+    }
+
+    private var streamContinuation: AsyncStream<StreamItem>.Continuation?
+    private var streamConsumerTask: Task<Void, Never>?
+
     public var isStreaming: Bool {
         lock.withLock { _isStreaming }
     }
@@ -49,9 +57,27 @@ public final class RTMPStreamOutput: StreamOutput, @unchecked Sendable {
         print("[RTMP] Publishing as \(publishName)...")
         _ = try await stream.publish(publishName)
 
+        let (streamItems, continuation) = AsyncStream.makeStream(
+            of: StreamItem.self,
+            bufferingPolicy: .bufferingNewest(8)
+        )
+        let consumer = Task { [weak stream] in
+            for await item in streamItems {
+                guard let stream = stream else { break }
+                switch item {
+                case .video(let sampleBuffer):
+                    await stream.append(sampleBuffer)
+                case .audio(let buffer, let when):
+                    await stream.append(buffer, when: when)
+                }
+            }
+        }
+
         lock.withLock {
             self.connection = connection
             self.stream = stream
+            self.streamContinuation = continuation
+            self.streamConsumerTask = consumer
             self._isStreaming = true
             self.startTime = Date()
             self.lastStatsUpdate = Date()
@@ -66,47 +92,45 @@ public final class RTMPStreamOutput: StreamOutput, @unchecked Sendable {
     }
 
     public func sendVideo(sampleBuffer: CMSampleBuffer) {
-        let streamToSend: RTMPStream? = lock.withLock {
-            guard _isStreaming, let stream = self.stream else { return nil }
+        let continuation: AsyncStream<StreamItem>.Continuation? = lock.withLock {
+            guard _isStreaming, stream != nil else { return nil }
             videoFrameCount += 1
             let sampleSize = CMSampleBufferGetTotalSampleSize(sampleBuffer)
             totalBytes += UInt64(sampleSize)
-            return stream
+            return streamContinuation
         }
 
-        guard let stream = streamToSend else { return }
-
-        Task {
-            await stream.append(sampleBuffer)
-        }
-
+        continuation?.yield(.video(sampleBuffer))
         updateStatsIfNeeded()
     }
 
     public func sendAudio(buffer: AVAudioBuffer, when: AVAudioTime) {
-        let streamToSend: RTMPStream? = lock.withLock {
-            guard _isStreaming, let stream = self.stream else { return nil }
-            return stream
+        let continuation: AsyncStream<StreamItem>.Continuation? = lock.withLock {
+            guard _isStreaming, stream != nil else { return nil }
+            return streamContinuation
         }
 
-        guard let stream = streamToSend else { return }
-
-        Task {
-            await stream.append(buffer, when: when)
-        }
+        continuation?.yield(.audio(buffer, when))
     }
 
     public func disconnect() async {
-        let (streamToClose, connToClose) = lock.withLock { () -> (RTMPStream?, RTMPConnection?) in
-            guard _isStreaming else { return (nil, nil) }
+        let (streamToClose, connToClose, continuation, consumer) = lock.withLock {
+            () -> (RTMPStream?, RTMPConnection?, AsyncStream<StreamItem>.Continuation?, Task<Void, Never>?) in
+            guard _isStreaming else { return (nil, nil, nil, nil) }
             _isStreaming = false
             let s = self.stream
             let c = self.connection
+            let cont = self.streamContinuation
+            let task = self.streamConsumerTask
             self.stream = nil
             self.connection = nil
-            return (s, c)
+            self.streamContinuation = nil
+            self.streamConsumerTask = nil
+            return (s, c, cont, task)
         }
 
+        continuation?.finish()
+        consumer?.cancel()
         _ = try? await streamToClose?.close()
         _ = try? await connToClose?.close()
         print("[RTMP] Disconnected.")

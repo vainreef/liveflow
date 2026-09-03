@@ -15,9 +15,14 @@ public final class VideoToolboxEncoder: @unchecked Sendable {
     public let codec: CMVideoCodecType
 
     private var compressionSession: VTCompressionSession?
+    private var _pixelBufferPool: CVPixelBufferPool?
     private var outputHandler: OutputHandler?
     private let lock = NSLock()
     private var isPrepared = false
+
+    public var pixelBufferPool: CVPixelBufferPool? {
+        lock.withLock { _pixelBufferPool }
+    }
 
     public init(
         width: Int32 = 1920,
@@ -104,8 +109,11 @@ public final class VideoToolboxEncoder: @unchecked Sendable {
             throw NSError(domain: "Liveflow", code: Int(prepStatus), userInfo: [NSLocalizedDescriptionKey: "Failed to prepare VTCompressionSession"])
         }
 
+        let pool = VTCompressionSessionGetPixelBufferPool(session)
+
         lock.withLock {
             self.compressionSession = session
+            self._pixelBufferPool = pool
             self.isPrepared = true
         }
     }
@@ -138,6 +146,7 @@ public final class VideoToolboxEncoder: @unchecked Sendable {
         let sessionToInvalidate = lock.withLock { () -> VTCompressionSession? in
             guard let s = compressionSession else { return nil }
             compressionSession = nil
+            _pixelBufferPool = nil
             isPrepared = false
             return s
         }

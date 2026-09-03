@@ -84,14 +84,30 @@ public final class RenderLoopWorker: @unchecked Sendable {
         }
     }
 
+    // Strictly bounded in-flight frame semaphore (max 2 frames in-flight between CPU, GPU, and VideoToolbox).
+    private let inFlightSemaphore = DispatchSemaphore(value: 2)
+    private var droppedRenderFrames: UInt64 = 0
+
+    public var totalDroppedRenderFrames: UInt64 {
+        lock.withLock { droppedRenderFrames }
+    }
+
     public func setLive(isLive: Bool, encoder: VideoToolboxEncoder?) {
         lock.withLock {
             self._isLive = isLive
             self.videoEncoder = encoder
         }
+        sceneRenderer.setExternalPixelBufferPool(encoder?.pixelBufferPool)
     }
 
     private func tickRender() {
+        // Probe semaphore with zero wait. If all 2 slots are busy, drop this frame immediately to prevent latency backlog!
+        let waitResult = inFlightSemaphore.wait(timeout: .now())
+        if waitResult == .timedOut {
+            lock.withLock { droppedRenderFrames += 1 }
+            return
+        }
+
         frameCount += 1
         let pts = CMTime(value: frameCount, timescale: CMTimeScale(targetFPS))
 
@@ -99,17 +115,24 @@ public final class RenderLoopWorker: @unchecked Sendable {
             (_sceneItems, _isLive, videoEncoder)
         }
 
-        guard let (pixelBuffer, texture) = sceneRenderer.renderOffscreen(items: items, timestamp: pts) else {
-            return
+        let didSubmit = sceneRenderer.renderOffscreenAsync(items: items, timestamp: pts) { [weak self] pixelBuffer, texture in
+            guard let self = self else { return }
+            defer {
+                self.inFlightSemaphore.signal()
+            }
+
+            self.lock.withLock {
+                self._latestPreviewTexture = texture
+            }
+
+            if live, let encoder = encoder {
+                let duration = CMTime(value: 1, timescale: CMTimeScale(self.targetFPS))
+                encoder.encode(pixelBuffer: pixelBuffer, presentationTimeStamp: pts, duration: duration)
+            }
         }
 
-        lock.withLock {
-            _latestPreviewTexture = texture
-        }
-
-        if live, let encoder = encoder {
-            let duration = CMTime(value: 1, timescale: CMTimeScale(targetFPS))
-            encoder.encode(pixelBuffer: pixelBuffer, presentationTimeStamp: pts, duration: duration)
+        if !didSubmit {
+            inFlightSemaphore.signal()
         }
     }
 }
@@ -145,6 +168,7 @@ public final class StreamEngine: ObservableObject {
     private var streamOutput: StreamOutput
     private let audioEngine = AudioEngine()
     private var cancellables = Set<AnyCancellable>()
+    private var streamingActivityToken: NSObjectProtocol?
 
     public var latestPreviewTexture: MTLTexture? {
         worker.latestPreviewTexture
@@ -196,7 +220,9 @@ public final class StreamEngine: ObservableObject {
             .sink { [weak self] _ in
                 guard let self = self else { return }
                 if self.isLive {
-                    self.stats = self.streamOutput.stats
+                    var currentStats = self.streamOutput.stats
+                    currentStats.droppedFrames = Int(self.worker.totalDroppedRenderFrames)
+                    self.stats = currentStats
                 }
                 let newPeak = self.audioEngine.peakLevel
                 if abs(self.audioPeakLevel - newPeak) > 0.05 || (newPeak == 0.0 && self.audioPeakLevel != 0.0) {
@@ -249,6 +275,10 @@ public final class StreamEngine: ObservableObject {
             self.isLive = true
             self.status = .streaming
             self.worker.setLive(isLive: true, encoder: encoder)
+            self.streamingActivityToken = ProcessInfo.processInfo.beginActivity(
+                options: [.userInitiatedAllowingIdleSystemSleep, .latencyCritical],
+                reason: "Liveflow 1080p60 Realtime Live Stream"
+            )
             print("[StreamEngine] \(testMode ? "Pipeline self-check test" : "Live stream") started successfully!")
         } catch let error as RTMPConnection.Error {
             let message: String
@@ -293,6 +323,10 @@ public final class StreamEngine: ObservableObject {
         worker.setLive(isLive: false, encoder: nil)
         videoEncoder?.invalidate()
         videoEncoder = nil
+        if let token = streamingActivityToken {
+            ProcessInfo.processInfo.endActivity(token)
+            streamingActivityToken = nil
+        }
         await streamOutput.disconnect()
         stats = StreamStats()
     }

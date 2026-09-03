@@ -1,9 +1,11 @@
 import SwiftUI
 
 public struct MainWindowView: View {
-    @StateObject private var engine = StreamEngine()
+    @ObservedObject var engine: StreamEngine
 
-    public init() {}
+    public init(engine: StreamEngine) {
+        self.engine = engine
+    }
 
     public var body: some View {
         VStack(spacing: 0) {

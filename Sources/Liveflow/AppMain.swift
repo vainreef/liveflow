@@ -4,14 +4,99 @@ import AppKit
 @main
 struct LiveflowApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    @StateObject private var engine = StreamEngine()
 
     var body: some Scene {
-        WindowGroup("Liveflow") {
-            MainWindowView()
+        Window("Liveflow", id: "mainWindow") {
+            MainWindowView(engine: engine)
+                .background(WindowAccessor())
         }
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unified)
         .defaultSize(width: 1080, height: 720)
+        .commands {
+            // 1. Remove "New Window" (Cmd+N) so app is strictly single-window
+            CommandGroup(replacing: .newItem) {}
+
+            // 2. App Info & Updates
+            CommandGroup(replacing: .appInfo) {
+                Button("About Liveflow") {
+                    NSApp.orderFrontStandardAboutPanel(
+                        options: [
+                            .applicationName: "Liveflow",
+                            .applicationVersion: "1.0.0",
+                            .version: "1",
+                            .credits: NSAttributedString(
+                                string: "Apple Silicon Native Live Streaming Engine\nZero-copy GPU & Metal pipeline\n1080p60 • 15 Mbps"
+                            )
+                        ]
+                    )
+                }
+                Button("Check for Updates...") {
+                    if let url = URL(string: "https://github.com/vainreef/liveflow/releases") {
+                        NSWorkspace.shared.open(url)
+                    }
+                }
+            }
+
+            // 3. Stream Control Menu
+            CommandMenu("Stream") {
+                Button(engine.isLive ? "Stop Streaming" : "Start Streaming") {
+                    Task {
+                        if engine.isLive {
+                            await engine.stopStreaming()
+                        } else {
+                            await engine.startStreaming()
+                        }
+                    }
+                }
+                .keyboardShortcut("r", modifiers: [.command])
+
+                Divider()
+
+                Button("Refresh Displays") {
+                    Task { await engine.refreshDisplays() }
+                }
+                .keyboardShortcut("r", modifiers: [.command, .shift])
+            }
+
+            // 4. Window Navigation
+            CommandGroup(replacing: .windowList) {
+                Button("Show Main Window") {
+                    WindowManager.shared.showMainWindow()
+                }
+                .keyboardShortcut("0", modifiers: [.command])
+            }
+
+            // 5. Help Menu with Cmd + ? navigation
+            CommandGroup(replacing: .help) {
+                Button("Liveflow Help") {
+                    if let url = URL(string: "https://github.com/vainreef/liveflow#readme") {
+                        NSWorkspace.shared.open(url)
+                    }
+                }
+                .keyboardShortcut("?", modifiers: [.command])
+
+                Button("GitHub Repository") {
+                    if let url = URL(string: "https://github.com/vainreef/liveflow") {
+                        NSWorkspace.shared.open(url)
+                    }
+                }
+
+                Divider()
+
+                Button("Report an Issue") {
+                    if let url = URL(string: "https://github.com/vainreef/liveflow/issues") {
+                        NSWorkspace.shared.open(url)
+                    }
+                }
+            }
+        }
+
+        // Status Bar Tray Menu
+        MenuBarExtra("Liveflow", systemImage: engine.isLive ? "record.circle.fill" : "antenna.radiowaves.left.and.right") {
+            LiveflowMenuBarView(engine: engine)
+        }
     }
 }
 
@@ -32,6 +117,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }()
             runHeadlessStreamTest(targetURL: targetURL, duration: durationSeconds)
         }
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if !flag {
+            WindowManager.shared.showMainWindow()
+        }
+        return true
+    }
+
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        // Keep running in menu bar tray when window is closed
+        return false
     }
 
     private func runHeadlessStreamTest(targetURL: String, duration: Double) {
@@ -74,9 +171,5 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 exit(2)
             }
         }
-    }
-
-    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        return true
     }
 }

@@ -1,241 +1,13 @@
 import SwiftUI
 import AppKit
 
-/// High-performance AppKit scrubbable numeric field.
-/// - Single click: Instantly focuses, selects all text, right-aligned, ready to type.
-/// - Click & drag: Smooth horizontal scrub with Shift (5x) and Option (0.1x).
-/// - Enter: Commits new value.
-/// - Esc / Click outside: Cancels without applying, reverts cleanly.
-public final class ScrubbableNumberNSView: NSView, NSTextFieldDelegate {
-    public var labelText: String = "" {
-        didSet { labelField.stringValue = labelText }
-    }
-    public var value: Double = 0.0 {
-        didSet {
-            if !isEditing {
-                updateDisplay()
-            }
-        }
-    }
-    public var range: ClosedRange<Double> = 0...100
-    public var step: Double = 1.0
-    public var unit: String = ""
-    public var onDragStart: (() -> Void)?
-    public var onDragEnd: (() -> Void)?
-    public var onCommit: ((Double) -> Void)?
-
-    private let labelField = NSTextField(labelWithString: "")
-    private let valueContainer = NSView()
-    private let displayField = NSTextField(labelWithString: "")
-    private let editField = NSTextField()
-
-    public private(set) var isEditing: Bool = false
-    private var isDragging: Bool = false
-    private var mouseDownPos: NSPoint = .zero
-    private var originalVal: Double = 0.0
-    private var committed: Bool = false
-
-    override init(frame frameRect: NSRect) {
-        super.init(frame: frameRect)
-        setup()
-    }
-
-    required init?(coder: NSCoder) {
-        super.init(coder: coder)
-        setup()
-    }
-
-    private func setup() {
-        wantsLayer = true
-
-        // 1. Label
-        labelField.font = .systemFont(ofSize: 10, weight: .bold)
-        labelField.textColor = .secondaryLabelColor
-        labelField.alignment = .left
-        labelField.lineBreakMode = .byTruncatingTail
-        addSubview(labelField)
-
-        // 2. Value container box
-        valueContainer.wantsLayer = true
-        valueContainer.layer?.cornerRadius = 3.0
-        valueContainer.layer?.backgroundColor = NSColor.controlBackgroundColor.cgColor
-        valueContainer.layer?.borderWidth = 1.0
-        valueContainer.layer?.borderColor = NSColor.separatorColor.cgColor
-        addSubview(valueContainer)
-
-        // 3. Display Field
-        displayField.font = .monospacedSystemFont(ofSize: 11, weight: .medium)
-        displayField.textColor = .controlTextColor
-        displayField.alignment = .right
-        displayField.isBordered = false
-        displayField.drawsBackground = false
-        valueContainer.addSubview(displayField)
-
-        // 4. Edit Field
-        editField.font = .monospacedSystemFont(ofSize: 11, weight: .medium)
-        editField.textColor = .controlTextColor
-        editField.alignment = .right
-        editField.isBordered = false
-        editField.drawsBackground = false
-        editField.focusRingType = .none
-        editField.delegate = self
-        editField.isHidden = true
-        valueContainer.addSubview(editField)
-    }
-
-    public override func layout() {
-        super.layout()
-        let labelW: CGFloat = 44.0
-        let h = bounds.height
-        labelField.frame = NSRect(x: 0, y: (h - 14) / 2.0, width: labelW, height: 14)
-
-        let valX = labelW + 2
-        let valW = max(20, bounds.width - valX)
-        valueContainer.frame = NSRect(x: valX, y: 0, width: valW, height: h)
-
-        let innerBounds = NSRect(x: 4, y: 1, width: valW - 8, height: h - 2)
-        displayField.frame = innerBounds
-        editField.frame = innerBounds
-    }
-
-    private func updateDisplay() {
-        let formatted = String(format: "%.0f", value)
-        if unit.isEmpty {
-            displayField.stringValue = formatted
-        } else {
-            displayField.stringValue = "\(formatted) \(unit)"
-        }
-    }
-
-    public override func resetCursorRects() {
-        if !isEditing {
-            addCursorRect(valueContainer.frame, cursor: .resizeLeftRight)
-        }
-    }
-
-    public override func mouseDown(with event: NSEvent) {
-        let pointInContainer = valueContainer.convert(event.locationInWindow, from: nil)
-        if valueContainer.bounds.contains(pointInContainer) && !isEditing {
-            mouseDownPos = event.locationInWindow
-            isDragging = false
-        } else {
-            super.mouseDown(with: event)
-        }
-    }
-
-    public override func mouseDragged(with event: NSEvent) {
-        guard !isEditing else { return }
-        let currentPos = event.locationInWindow
-        let totalDx = currentPos.x - mouseDownPos.x
-
-        if !isDragging && abs(totalDx) >= 3.0 {
-            isDragging = true
-            onDragStart?()
-            valueContainer.layer?.borderColor = NSColor.systemBlue.cgColor
-            valueContainer.layer?.backgroundColor = NSColor.systemBlue.withAlphaComponent(0.15).cgColor
-        }
-
-        if isDragging {
-            var mult = 1.0
-            if event.modifierFlags.contains(.shift) {
-                mult = 5.0
-            } else if event.modifierFlags.contains(.option) {
-                mult = 0.1
-            }
-            let delta = Double(event.deltaX) * step * mult
-            let newVal = min(max(range.lowerBound, value + delta), range.upperBound)
-            if newVal != value {
-                value = newVal
-                updateDisplay()
-                onCommit?(newVal)
-            }
-        }
-    }
-
-    public override func mouseUp(with event: NSEvent) {
-        if isDragging {
-            isDragging = false
-            valueContainer.layer?.borderColor = NSColor.separatorColor.cgColor
-            valueContainer.layer?.backgroundColor = NSColor.controlBackgroundColor.cgColor
-            onDragEnd?()
-        } else {
-            let pointInContainer = valueContainer.convert(event.locationInWindow, from: nil)
-            if valueContainer.bounds.contains(pointInContainer) && !isEditing {
-                // SINGLE CLICK -> INITIATE EDITING!
-                startEditing()
-            }
-        }
-    }
-
-    private func startEditing() {
-        isEditing = true
-        committed = false
-        originalVal = value
-
-        displayField.isHidden = true
-        editField.isHidden = false
-        editField.stringValue = String(format: "%.0f", value)
-
-        valueContainer.layer?.borderColor = NSColor.controlAccentColor.cgColor
-        valueContainer.layer?.backgroundColor = NSColor.controlAccentColor.withAlphaComponent(0.12).cgColor
-
-        window?.makeFirstResponder(editField)
-        editField.selectText(nil) // Fully selects all text on click
-        window?.invalidateCursorRects(for: self)
-    }
-
-    private func stopEditing(apply: Bool) {
-        guard isEditing else { return }
-        isEditing = false
-
-        if apply {
-            if let val = Double(editField.stringValue) {
-                let clamped = min(max(range.lowerBound, val), range.upperBound)
-                value = clamped
-                onCommit?(clamped)
-            }
-        } else {
-            value = originalVal
-        }
-
-        updateDisplay()
-        editField.isHidden = true
-        displayField.isHidden = false
-
-        valueContainer.layer?.borderColor = NSColor.separatorColor.cgColor
-        valueContainer.layer?.backgroundColor = NSColor.controlBackgroundColor.cgColor
-
-        window?.invalidateCursorRects(for: self)
-    }
-
-    // MARK: - NSTextFieldDelegate
-    public func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
-        if commandSelector == #selector(NSResponder.insertNewline(_:)) {
-            // Enter key pressed -> Apply
-            committed = true
-            stopEditing(apply: true)
-            window?.makeFirstResponder(nil)
-            return true
-        } else if commandSelector == #selector(NSResponder.cancelOperation(_:)) {
-            // Escape key pressed -> Cancel
-            committed = true
-            stopEditing(apply: false)
-            window?.makeFirstResponder(nil)
-            return true
-        }
-        return false
-    }
-
-    public func controlTextDidEndEditing(_ obj: Notification) {
-        if !committed {
-            // Lost focus / click outside -> Cancel without applying
-            stopEditing(apply: false)
-        }
-    }
-}
-
-/// SwiftUI wrapper for ScrubbableNumberNSView
-public struct ScrubbableNumberField: NSViewRepresentable {
+/// High-performance scrubbable number field built on native SwiftUI TextField.
+/// - Single Click: Instantly enters editing, auto-selects all text in macOS blue selection, ready to type.
+/// - Click & Drag: Smooth horizontal scrubbing with Shift (5x) and Option (0.1x) precision.
+/// - Enter: Commits new value and updates scene.
+/// - Esc / Click Outside: Cancels without applying, reverts cleanly.
+/// - Normal state: Clean system text color (not permanently blue).
+public struct ScrubbableNumberField: View {
     let label: String
     @Binding var value: Double
     let range: ClosedRange<Double>
@@ -244,6 +16,14 @@ public struct ScrubbableNumberField: NSViewRepresentable {
     let onDragStart: (() -> Void)?
     let onDragEnd: (() -> Void)?
     let onCommit: () -> Void
+
+    @State private var isEditing = false
+    @State private var text = ""
+    @FocusState private var isFocused: Bool
+
+    @State private var isHovered = false
+    @State private var isDragging = false
+    @State private var dragStartVal: Double = 0
 
     public init(
         label: String,
@@ -265,35 +45,129 @@ public struct ScrubbableNumberField: NSViewRepresentable {
         self.onCommit = onCommit
     }
 
-    public func makeNSView(context: Context) -> ScrubbableNumberNSView {
-        let view = ScrubbableNumberNSView()
-        view.labelText = label
-        view.value = value
-        view.range = range
-        view.step = step
-        view.unit = unit
-        view.onDragStart = onDragStart
-        view.onDragEnd = onDragEnd
-        view.onCommit = { newVal in
-            self.value = newVal
-            self.onCommit()
-        }
-        return view
-    }
+    public var body: some View {
+        HStack(spacing: 3) {
+            Text(label)
+                .font(.system(size: 10, weight: .bold))
+                .foregroundColor(.secondary)
+                .frame(width: 44, alignment: .leading)
+                .lineLimit(1)
 
-    public func updateNSView(_ nsView: ScrubbableNumberNSView, context: Context) {
-        nsView.labelText = label
-        nsView.range = range
-        nsView.step = step
-        nsView.unit = unit
-        nsView.onDragStart = onDragStart
-        nsView.onDragEnd = onDragEnd
-        nsView.onCommit = { newVal in
-            self.value = newVal
-            self.onCommit()
-        }
-        if !nsView.isEditing {
-            nsView.value = value
+            ZStack(alignment: .trailing) {
+                if isEditing {
+                    TextField("", text: $text)
+                        .font(.system(size: 11, weight: .bold, design: .monospaced))
+                        .multilineTextAlignment(.trailing)
+                        .textFieldStyle(.plain)
+                        .focused($isFocused)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(Color(NSColor.textBackgroundColor))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 3)
+                                .stroke(Color.accentColor, lineWidth: 1.5)
+                        )
+                        .onSubmit {
+                            if let val = Double(text) {
+                                let clamped = min(max(range.lowerBound, val), range.upperBound)
+                                if clamped != value {
+                                    value = clamped
+                                    onCommit()
+                                }
+                            }
+                            isEditing = false
+                        }
+                        .onExitCommand {
+                            // Esc key pressed -> cancel
+                            isEditing = false
+                        }
+                        .onChange(of: isFocused) { _, focused in
+                            if !focused {
+                                // Lost focus / clicked outside -> cancel
+                                isEditing = false
+                            }
+                        }
+                } else {
+                    HStack(spacing: 2) {
+                        Text(String(format: "%.0f", value))
+                            .font(.system(size: 11, weight: .medium, design: .monospaced))
+                            .foregroundColor(isDragging ? .accentColor : .primary)
+
+                        if !unit.isEmpty {
+                            Text(unit)
+                                .font(.system(size: 9))
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 2)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .background(
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(isDragging ? Color.accentColor.opacity(0.18) : (isHovered ? Color.secondary.opacity(0.12) : Color(NSColor.controlBackgroundColor)))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 3)
+                            .stroke(isDragging ? Color.accentColor : (isHovered ? Color.secondary.opacity(0.4) : Color.secondary.opacity(0.2)), lineWidth: 1)
+                    )
+                    .contentShape(Rectangle())
+                    .onHover { hovering in
+                        guard !isEditing else { return }
+                        isHovered = hovering
+                        if hovering {
+                            NSCursor.resizeLeftRight.push()
+                        } else {
+                            NSCursor.pop()
+                        }
+                    }
+                    .gesture(
+                        DragGesture(minimumDistance: 0)
+                            .onChanged { gesture in
+                                guard !isEditing else { return }
+                                if !isDragging && abs(gesture.translation.width) >= 3 {
+                                    isDragging = true
+                                    dragStartVal = value
+                                    onDragStart?()
+                                }
+                                if isDragging {
+                                    let delta = gesture.translation.width
+                                    var mult = 1.0
+                                    if NSEvent.modifierFlags.contains(.shift) {
+                                        mult = 5.0
+                                    } else if NSEvent.modifierFlags.contains(.option) {
+                                        mult = 0.1
+                                    }
+                                    let deltaVal = Double(delta) * step * mult
+                                    let newVal = min(max(range.lowerBound, dragStartVal + deltaVal), range.upperBound)
+                                    if newVal != value {
+                                        value = newVal
+                                        onCommit()
+                                    }
+                                }
+                            }
+                            .onEnded { gesture in
+                                guard !isEditing else { return }
+                                if isDragging {
+                                    isDragging = false
+                                    onDragEnd?()
+                                } else {
+                                    // SINGLE CLICK DETECTED -> ENTER EDIT MODE!
+                                    text = String(format: "%.0f", value)
+                                    isEditing = true
+                                    isFocused = true
+                                    // Auto-select all text so typing immediately replaces it
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                                        NSApp.sendAction(#selector(NSText.selectAll(_:)), to: nil, from: nil)
+                                    }
+                                }
+                            }
+                    )
+                }
+            }
+            .frame(height: 20)
         }
     }
 }
@@ -416,7 +290,6 @@ public struct PropertyInspectorView: View {
                                 ) {
                                     recordChange(item: item)
                                 }
-                                .frame(height: 20)
 
                                 ScrubbableNumberField(
                                     label: "Pos Y",
@@ -432,7 +305,6 @@ public struct PropertyInspectorView: View {
                                 ) {
                                     recordChange(item: item)
                                 }
-                                .frame(height: 20)
                             }
 
                             HStack(spacing: 4) {
@@ -450,7 +322,6 @@ public struct PropertyInspectorView: View {
                                 ) {
                                     recordChange(item: item)
                                 }
-                                .frame(height: 20)
 
                                 Button {
                                     item.isScaleLocked.toggle()
@@ -486,7 +357,6 @@ public struct PropertyInspectorView: View {
                                 ) {
                                     recordChange(item: item)
                                 }
-                                .frame(height: 20)
                             }
                         }
 
@@ -513,7 +383,6 @@ public struct PropertyInspectorView: View {
                                 ) {
                                     recordChange(item: item)
                                 }
-                                .frame(height: 20)
 
                                 ScrubbableNumberField(
                                     label: "Right",
@@ -529,7 +398,6 @@ public struct PropertyInspectorView: View {
                                 ) {
                                     recordChange(item: item)
                                 }
-                                .frame(height: 20)
                             }
 
                             HStack(spacing: 8) {
@@ -547,7 +415,6 @@ public struct PropertyInspectorView: View {
                                 ) {
                                     recordChange(item: item)
                                 }
-                                .frame(height: 20)
 
                                 ScrubbableNumberField(
                                     label: "Bottom",
@@ -563,7 +430,6 @@ public struct PropertyInspectorView: View {
                                 ) {
                                     recordChange(item: item)
                                 }
-                                .frame(height: 20)
                             }
                         }
 
@@ -585,7 +451,6 @@ public struct PropertyInspectorView: View {
                             ) {
                                 recordChange(item: item)
                             }
-                            .frame(height: 20)
                         }
                     }
                     .padding(.trailing, 2)

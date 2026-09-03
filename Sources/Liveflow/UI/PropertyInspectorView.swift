@@ -15,6 +15,7 @@ public struct ScrubbableNumberField: View {
     let unit: String
     let onDragStart: (() -> Void)?
     let onDragEnd: (() -> Void)?
+    let onCancel: (() -> Void)?
     let onCommit: () -> Void
 
     @State private var isEditing = false
@@ -34,6 +35,7 @@ public struct ScrubbableNumberField: View {
         unit: String = "",
         onDragStart: (() -> Void)? = nil,
         onDragEnd: (() -> Void)? = nil,
+        onCancel: (() -> Void)? = nil,
         onCommit: @escaping () -> Void
     ) {
         self.label = label
@@ -43,6 +45,7 @@ public struct ScrubbableNumberField: View {
         self.unit = unit
         self.onDragStart = onDragStart
         self.onDragEnd = onDragEnd
+        self.onCancel = onCancel
         self.onCommit = onCommit
     }
 
@@ -77,17 +80,24 @@ public struct ScrubbableNumberField: View {
                                 if clamped != value {
                                     value = clamped
                                     onCommit()
+                                    onDragEnd?()
+                                } else {
+                                    onCancel?()
                                 }
+                            } else {
+                                onCancel?()
                             }
                             stopEditing()
                         }
                         .onExitCommand {
                             // Esc key pressed -> cancel
+                            onCancel?()
                             stopEditing()
                         }
                         .onChange(of: isFocused) { _, focused in
                             if !focused {
                                 // Lost focus -> cancel
+                                onCancel?()
                                 stopEditing()
                             }
                         }
@@ -156,6 +166,7 @@ public struct ScrubbableNumberField: View {
                                     onDragEnd?()
                                 } else {
                                     // SINGLE CLICK DETECTED -> ENTER EDIT MODE!
+                                    onDragStart?()
                                     text = String(format: "%.0f", value)
                                     isEditing = true
                                     isFocused = true
@@ -171,12 +182,15 @@ public struct ScrubbableNumberField: View {
             }
             .frame(height: 20)
             .onDisappear {
-                stopClickOutsideMonitor()
+                stopEditing(didCancel: true)
             }
         }
     }
 
-    private func stopEditing() {
+    private func stopEditing(didCancel: Bool = false) {
+        if didCancel {
+            onCancel?()
+        }
         isEditing = false
         stopClickOutsideMonitor()
     }
@@ -195,7 +209,7 @@ public struct ScrubbableNumberField: View {
                 }
                 // Clicked outside active editor!
                 DispatchQueue.main.async {
-                    self.stopEditing()
+                    self.stopEditing(didCancel: true)
                 }
             }
             return event
@@ -324,7 +338,8 @@ public struct PropertyInspectorView: View {
                                     step: 1.0,
                                     unit: "px",
                                     onDragStart: { recordDragStart(item: item) },
-                                    onDragEnd: { recordDragEnd(item: item) }
+                                    onDragEnd: { recordDragEnd(item: item) },
+                                    onCancel: { recordCancel(item: item) }
                                 ) {
                                     recordChange(item: item)
                                 }
@@ -339,7 +354,8 @@ public struct PropertyInspectorView: View {
                                     step: 1.0,
                                     unit: "px",
                                     onDragStart: { recordDragStart(item: item) },
-                                    onDragEnd: { recordDragEnd(item: item) }
+                                    onDragEnd: { recordDragEnd(item: item) },
+                                    onCancel: { recordCancel(item: item) }
                                 ) {
                                     recordChange(item: item)
                                 }
@@ -356,7 +372,8 @@ public struct PropertyInspectorView: View {
                                     step: 1.0,
                                     unit: "%",
                                     onDragStart: { recordDragStart(item: item) },
-                                    onDragEnd: { recordDragEnd(item: item) }
+                                    onDragEnd: { recordDragEnd(item: item) },
+                                    onCancel: { recordCancel(item: item) }
                                 ) {
                                     recordChange(item: item)
                                 }
@@ -391,7 +408,8 @@ public struct PropertyInspectorView: View {
                                     step: 1.0,
                                     unit: "%",
                                     onDragStart: { recordDragStart(item: item) },
-                                    onDragEnd: { recordDragEnd(item: item) }
+                                    onDragEnd: { recordDragEnd(item: item) },
+                                    onCancel: { recordCancel(item: item) }
                                 ) {
                                     recordChange(item: item)
                                 }
@@ -417,7 +435,8 @@ public struct PropertyInspectorView: View {
                                     step: 0.5,
                                     unit: "%",
                                     onDragStart: { recordDragStart(item: item) },
-                                    onDragEnd: { recordDragEnd(item: item) }
+                                    onDragEnd: { recordDragEnd(item: item) },
+                                    onCancel: { recordCancel(item: item) }
                                 ) {
                                     recordChange(item: item)
                                 }
@@ -432,7 +451,8 @@ public struct PropertyInspectorView: View {
                                     step: 0.5,
                                     unit: "%",
                                     onDragStart: { recordDragStart(item: item) },
-                                    onDragEnd: { recordDragEnd(item: item) }
+                                    onDragEnd: { recordDragEnd(item: item) },
+                                    onCancel: { recordCancel(item: item) }
                                 ) {
                                     recordChange(item: item)
                                 }
@@ -449,7 +469,8 @@ public struct PropertyInspectorView: View {
                                     step: 0.5,
                                     unit: "%",
                                     onDragStart: { recordDragStart(item: item) },
-                                    onDragEnd: { recordDragEnd(item: item) }
+                                    onDragEnd: { recordDragEnd(item: item) },
+                                    onCancel: { recordCancel(item: item) }
                                 ) {
                                     recordChange(item: item)
                                 }
@@ -464,7 +485,8 @@ public struct PropertyInspectorView: View {
                                     step: 0.5,
                                     unit: "%",
                                     onDragStart: { recordDragStart(item: item) },
-                                    onDragEnd: { recordDragEnd(item: item) }
+                                    onDragEnd: { recordDragEnd(item: item) },
+                                    onCancel: { recordCancel(item: item) }
                                 ) {
                                     recordChange(item: item)
                                 }
@@ -485,7 +507,8 @@ public struct PropertyInspectorView: View {
                                 step: 1.0,
                                 unit: "%",
                                 onDragStart: { recordDragStart(item: item) },
-                                onDragEnd: { recordDragEnd(item: item) }
+                                onDragEnd: { recordDragEnd(item: item) },
+                                onCancel: { recordCancel(item: item) }
                             ) {
                                 recordChange(item: item)
                             }
@@ -516,9 +539,15 @@ public struct PropertyInspectorView: View {
     private func recordDragEnd(item: SceneItem) {
         if let start = dragStartSnapshot {
             let end = SceneItemTransformSnapshot(from: item)
-            engine.recordTransformChange(itemId: item.id, before: start, after: end)
+            if start != end {
+                engine.recordTransformChange(itemId: item.id, before: start, after: end)
+            }
             dragStartSnapshot = nil
         }
+    }
+
+    private func recordCancel(item: SceneItem) {
+        dragStartSnapshot = nil
     }
 
     private func recordChange(item: SceneItem) {

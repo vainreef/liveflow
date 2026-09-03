@@ -50,6 +50,7 @@ public final class RTMPStreamOutput: StreamOutput, @unchecked Sendable {
 
         let connection = RTMPConnection()
         let stream = RTMPStream(connection: connection)
+        try? await stream.setAudioSettings(AudioCodecSettings(bitRate: 128 * 1000))
 
         print("[RTMP] Connecting to \(connectURLString)...")
         _ = try await connection.connect(connectURLString)

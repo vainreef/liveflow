@@ -53,7 +53,20 @@ public final class AudioEngine: @unchecked Sendable {
                     return self.outputHandler
                 }
 
-                handler?(buffer, time)
+                // Stereo dual-channel broadcast: replicate mono into Left and Right channels (L = Mic, R = Mic)
+                if format.channelCount == 1,
+                   let stereoFormat = AVAudioFormat(standardFormatWithSampleRate: format.sampleRate, channels: 2),
+                   let stereoBuffer = AVAudioPCMBuffer(pcmFormat: stereoFormat, frameCapacity: buffer.frameLength) {
+                    stereoBuffer.frameLength = buffer.frameLength
+                    if let stereoData = stereoBuffer.floatChannelData {
+                        let byteCount = frameLength * MemoryLayout<Float>.size
+                        memcpy(stereoData[0], channelData, byteCount)
+                        memcpy(stereoData[1], channelData, byteCount)
+                    }
+                    handler?(stereoBuffer, time)
+                } else {
+                    handler?(buffer, time)
+                }
             }
         }
 

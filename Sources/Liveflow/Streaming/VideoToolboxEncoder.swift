@@ -28,7 +28,7 @@ public final class VideoToolboxEncoder: @unchecked Sendable {
         width: Int32 = 1920,
         height: Int32 = 1080,
         fps: Int32 = 60,
-        bitRate: Int32 = 15_000_000, // 15 Mbps default for high-bitrate live streaming
+        bitRate: Int32 = 12_000_000, // 12 Mbps default for YouTube 1080p60 High Quality
         codec: CMVideoCodecType = kCMVideoCodecType_H264
     ) {
         self.width = width
@@ -74,7 +74,10 @@ public final class VideoToolboxEncoder: @unchecked Sendable {
             kCVPixelBufferWidthKey: width,
             kCVPixelBufferHeightKey: height,
             kCVPixelBufferIOSurfacePropertiesKey: [:] as CFDictionary,
-            kCVPixelBufferMetalCompatibilityKey: true
+            kCVPixelBufferMetalCompatibilityKey: true,
+            kCVImageBufferColorPrimariesKey: kCVImageBufferColorPrimaries_ITU_R_709_2,
+            kCVImageBufferTransferFunctionKey: kCVImageBufferTransferFunction_ITU_R_709_2,
+            kCVImageBufferYCbCrMatrixKey: kCVImageBufferYCbCrMatrix_ITU_R_709_2
         ]
 
         let status = VTCompressionSessionCreate(
@@ -94,15 +97,29 @@ public final class VideoToolboxEncoder: @unchecked Sendable {
             throw NSError(domain: "Liveflow", code: Int(status), userInfo: [NSLocalizedDescriptionKey: "Failed to create VTCompressionSession (code \(status))"])
         }
 
-        // Configure properties for live streaming
+        // Configure properties for YouTube 1080p60 High Quality live streaming
         VTSessionSetProperty(session, key: kVTCompressionPropertyKey_RealTime, value: kCFBooleanTrue)
         VTSessionSetProperty(session, key: kVTCompressionPropertyKey_ProfileLevel, value: kVTProfileLevel_H264_High_AutoLevel)
+        VTSessionSetProperty(session, key: kVTCompressionPropertyKey_H264EntropyMode, value: kVTH264EntropyMode_CABAC)
+
+        // Target 12 Mbps average bitrate with ~14.4 Mbps peak guardrail (1,800,000 bytes / 1 sec)
         VTSessionSetProperty(session, key: kVTCompressionPropertyKey_AverageBitRate, value: bitRate as CFNumber)
-        VTSessionSetProperty(session, key: kVTCompressionPropertyKey_DataRateLimits, value: [bitRate * 2 / 8, 1] as CFArray)
+        let peakBytesPerSec = max(1_800_000, Int(Double(bitRate) * 1.2 / 8.0))
+        VTSessionSetProperty(session, key: kVTCompressionPropertyKey_DataRateLimits, value: [peakBytesPerSec, 1] as CFArray)
+
+        // GOP: 120 frames at 60 fps (2.0 seconds keyframe interval)
         VTSessionSetProperty(session, key: kVTCompressionPropertyKey_ExpectedFrameRate, value: fps as CFNumber)
         VTSessionSetProperty(session, key: kVTCompressionPropertyKey_MaxKeyFrameInterval, value: (fps * 2) as CFNumber)
         VTSessionSetProperty(session, key: kVTCompressionPropertyKey_MaxKeyFrameIntervalDuration, value: 2.0 as CFNumber)
-        VTSessionSetProperty(session, key: kVTCompressionPropertyKey_AllowFrameReordering, value: kCFBooleanFalse)
+
+        // B-Frames & Temporal Frame Reordering
+        VTSessionSetProperty(session, key: kVTCompressionPropertyKey_AllowFrameReordering, value: kCFBooleanTrue)
+        VTSessionSetProperty(session, key: kVTCompressionPropertyKey_AllowTemporalCompression, value: kCFBooleanTrue)
+
+        // Explicit Rec.709 color metadata
+        VTSessionSetProperty(session, key: kVTCompressionPropertyKey_ColorPrimaries, value: kCVImageBufferColorPrimaries_ITU_R_709_2)
+        VTSessionSetProperty(session, key: kVTCompressionPropertyKey_TransferFunction, value: kCVImageBufferTransferFunction_ITU_R_709_2)
+        VTSessionSetProperty(session, key: kVTCompressionPropertyKey_YCbCrMatrix, value: kCVImageBufferYCbCrMatrix_ITU_R_709_2)
 
         let prepStatus = VTCompressionSessionPrepareToEncodeFrames(session)
         guard prepStatus == noErr else {

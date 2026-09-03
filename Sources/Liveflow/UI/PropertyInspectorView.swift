@@ -24,6 +24,7 @@ public struct ScrubbableNumberField: View {
     @State private var isHovered = false
     @State private var isDragging = false
     @State private var dragStartVal: Double = 0
+    @State private var eventMonitor: Any?
 
     public init(
         label: String,
@@ -56,7 +57,7 @@ public struct ScrubbableNumberField: View {
             ZStack(alignment: .trailing) {
                 if isEditing {
                     TextField("", text: $text)
-                        .font(.system(size: 11, weight: .bold, design: .monospaced))
+                        .font(.system(size: 11, weight: .medium, design: .monospaced))
                         .multilineTextAlignment(.trailing)
                         .textFieldStyle(.plain)
                         .focused($isFocused)
@@ -78,16 +79,16 @@ public struct ScrubbableNumberField: View {
                                     onCommit()
                                 }
                             }
-                            isEditing = false
+                            stopEditing()
                         }
                         .onExitCommand {
                             // Esc key pressed -> cancel
-                            isEditing = false
+                            stopEditing()
                         }
                         .onChange(of: isFocused) { _, focused in
                             if !focused {
-                                // Lost focus / clicked outside -> cancel
-                                isEditing = false
+                                // Lost focus -> cancel
+                                stopEditing()
                             }
                         }
                 } else {
@@ -158,6 +159,7 @@ public struct ScrubbableNumberField: View {
                                     text = String(format: "%.0f", value)
                                     isEditing = true
                                     isFocused = true
+                                    startClickOutsideMonitor()
                                     // Auto-select all text so typing immediately replaces it
                                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                                         NSApp.sendAction(#selector(NSText.selectAll(_:)), to: nil, from: nil)
@@ -168,6 +170,42 @@ public struct ScrubbableNumberField: View {
                 }
             }
             .frame(height: 20)
+            .onDisappear {
+                stopClickOutsideMonitor()
+            }
+        }
+    }
+
+    private func stopEditing() {
+        isEditing = false
+        stopClickOutsideMonitor()
+    }
+
+    private func startClickOutsideMonitor() {
+        stopClickOutsideMonitor()
+        eventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { event in
+            guard isEditing else { return event }
+            if let window = NSApp.keyWindow {
+                let hitView = window.contentView?.hitTest(event.locationInWindow)
+                if let editor = window.firstResponder as? NSView {
+                    if hitView == editor || hitView?.isDescendant(of: editor) == true {
+                        // Clicked inside active editor
+                        return event
+                    }
+                }
+                // Clicked outside active editor!
+                DispatchQueue.main.async {
+                    self.stopEditing()
+                }
+            }
+            return event
+        }
+    }
+
+    private func stopClickOutsideMonitor() {
+        if let m = eventMonitor {
+            NSEvent.removeMonitor(m)
+            eventMonitor = nil
         }
     }
 }

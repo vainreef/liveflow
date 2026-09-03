@@ -233,9 +233,11 @@ public final class MetalSceneRenderer: @unchecked Sendable {
         for item in sorted {
             guard let frame = item.source.currentFrame() else { continue }
 
+            let r = item.renderedRect
+            let c = item.renderedCropRect
             var uniforms = LayerUniforms(
-                rect: SIMD4<Float>(Float(item.rect.origin.x), Float(item.rect.origin.y), Float(item.rect.size.width), Float(item.rect.size.height)),
-                cropRect: SIMD4<Float>(Float(item.cropRect.origin.x), Float(item.cropRect.origin.y), Float(item.cropRect.size.width), Float(item.cropRect.size.height)),
+                rect: SIMD4<Float>(Float(r.origin.x), Float(r.origin.y), Float(r.size.width), Float(r.size.height)),
+                cropRect: SIMD4<Float>(Float(c.origin.x), Float(c.origin.y), Float(c.size.width), Float(c.size.height)),
                 opacity: item.opacity,
                 flipY: 1.0
             )

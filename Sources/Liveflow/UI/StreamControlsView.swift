@@ -3,11 +3,15 @@ import SwiftUI
 public struct StreamControlsView: View {
     @ObservedObject var engine: StreamEngine
 
+    public init(engine: StreamEngine) {
+        self.engine = engine
+    }
+
     public var body: some View {
-        HStack(alignment: .top, spacing: 16) {
-            // ==========================================
-            // 1. Left Column: Sources & Transform Bar
-            // ==========================================
+        HStack(alignment: .top, spacing: 12) {
+            // ========================================================
+            // 1. Left Column: Sources List (Narrower width)
+            // ========================================================
             VStack(alignment: .leading, spacing: 6) {
                 // Header
                 HStack {
@@ -53,32 +57,33 @@ public struct StreamControlsView: View {
                     .controlSize(.small)
                 }
 
-                // Sources List in a flexible container that expands with panel height
+                // Sources List in a flexible container
                 VStack(spacing: 0) {
                     ScrollView(.vertical, showsIndicators: true) {
                         VStack(spacing: 3) {
                             if engine.sceneItems.isEmpty {
-                                Text("No sources. Click + to add display.")
+                                Text("No sources.\nClick + to add.")
                                     .font(.system(size: 11))
                                     .foregroundColor(.secondary)
+                                    .multilineTextAlignment(.center)
                                     .frame(maxWidth: .infinity, minHeight: 70)
                             } else {
                                 ForEach(engine.sceneItems) { item in
                                     let isSelected = (engine.selectedItemID == item.id)
-                                    HStack(spacing: 6) {
+                                    HStack(spacing: 5) {
                                         Text(item.name)
                                             .font(.system(size: 11, weight: isSelected ? .bold : .regular))
                                             .foregroundColor(item.isEnabled ? .primary : .secondary)
                                             .lineLimit(1)
 
-                                        Spacer()
+                                        Spacer(minLength: 2)
 
                                         Button {
                                             item.isEnabled.toggle()
                                             engine.updateSceneItems()
                                         } label: {
                                             Image(systemName: item.isEnabled ? "eye.fill" : "eye.slash")
-                                                .font(.system(size: 11))
+                                                .font(.system(size: 10))
                                                 .foregroundColor(item.isEnabled ? .accentColor : .secondary)
                                         }
                                         .buttonStyle(.plain)
@@ -92,7 +97,7 @@ public struct StreamControlsView: View {
                                         }
                                         .buttonStyle(.plain)
                                     }
-                                    .padding(.horizontal, 8)
+                                    .padding(.horizontal, 6)
                                     .padding(.vertical, 5)
                                     .background(
                                         RoundedRectangle(cornerRadius: 4)
@@ -119,160 +124,101 @@ public struct StreamControlsView: View {
                     RoundedRectangle(cornerRadius: 5)
                         .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
                 )
-
-                // Transform Toolbar directly below the list
-                if engine.selectedItem != nil {
-                    HStack(spacing: 5) {
-                        Button("Fit (16:9)") {
-                            engine.fitSelectedItem()
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.mini)
-                        .help("Fit within 16:9 canvas maintaining aspect ratio")
-
-                        Button("Fill & Crop") {
-                            engine.fillAndCropSelectedItem()
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.mini)
-                        .help("Crop borders to fill 16:9 canvas completely")
-
-                        Button("Reset") {
-                            engine.resetSelectedItem()
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.mini)
-
-                        Spacer()
-
-                        // Move Direction Steppers
-                        HStack(spacing: 2) {
-                            Button {
-                                engine.moveSelectedItem(dx: -0.02, dy: 0)
-                            } label: {
-                                Image(systemName: "arrow.left")
-                            }
-                            .buttonStyle(.bordered)
-                            .controlSize(.mini)
-
-                            Button {
-                                engine.moveSelectedItem(dx: 0, dy: -0.02)
-                            } label: {
-                                Image(systemName: "arrow.up")
-                            }
-                            .buttonStyle(.bordered)
-                            .controlSize(.mini)
-
-                            Button {
-                                engine.moveSelectedItem(dx: 0, dy: 0.02)
-                            } label: {
-                                Image(systemName: "arrow.down")
-                            }
-                            .buttonStyle(.bordered)
-                            .controlSize(.mini)
-
-                            Button {
-                                engine.moveSelectedItem(dx: 0.02, dy: 0)
-                            } label: {
-                                Image(systemName: "arrow.right")
-                            }
-                            .buttonStyle(.bordered)
-                            .controlSize(.mini)
-                        }
-                    }
-                    .padding(.horizontal, 2)
-                }
             }
-            .frame(width: 330)
+            .frame(width: 195)
 
             Divider()
 
             // ========================================================
-            // 2. Right Column: Stream Destination (Top) & Audio (Bottom)
+            // 2. Middle Column: Property Inspector (Scrubbable controls)
             // ========================================================
-            VStack(alignment: .leading, spacing: 8) {
-                // Top: Stream Destination
-                VStack(alignment: .leading, spacing: 5) {
-                    HStack {
-                        Label("Stream Destination", systemImage: "antenna.radiowaves.left.and.right")
-                            .font(.system(size: 13, weight: .bold))
-                        Spacer()
-                        if engine.isTestMode {
-                            Text("Self-Check Test Mode")
-                                .font(.system(size: 10, weight: .medium))
-                                .foregroundColor(.indigo)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(Color.indigo.opacity(0.12))
-                                .cornerRadius(4)
-                        } else {
-                            Text("RTMP Live")
-                                .font(.system(size: 10, weight: .medium))
-                                .foregroundColor(.blue)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(Color.blue.opacity(0.12))
-                                .cornerRadius(4)
-                        }
+            PropertyInspectorView(engine: engine)
+                .frame(maxWidth: .infinity)
+
+            Divider()
+
+            // ========================================================
+            // 3. Right Column: Stream Destination (Top) & Audio (Bottom)
+            // ========================================================
+            VStack(alignment: .leading, spacing: 6) {
+                // Header
+                HStack {
+                    Label("Stream Destination", systemImage: "antenna.radiowaves.left.and.right")
+                        .font(.system(size: 13, weight: .bold))
+                    Spacer()
+                    if engine.isTestMode {
+                        Text("Test Mode")
+                            .font(.system(size: 9, weight: .medium))
+                            .foregroundColor(.indigo)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(Color.indigo.opacity(0.12))
+                            .cornerRadius(4)
+                    } else {
+                        Text("Live")
+                            .font(.system(size: 9, weight: .medium))
+                            .foregroundColor(.blue)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(Color.blue.opacity(0.12))
+                            .cornerRadius(4)
+                    }
+                }
+
+                // Stacked inputs: Server URL on top, Stream Key underneath
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Server URL:")
+                        .font(.system(size: 10))
+                        .foregroundColor(.secondary)
+                    TextField("rtmp://... (Leave empty to test)", text: $engine.rtmpURL)
+                        .textFieldStyle(.roundedBorder)
+                        .controlSize(.small)
+                        .disabled(engine.isLive)
+
+                    Text("Stream Key:")
+                        .font(.system(size: 10))
+                        .foregroundColor(.secondary)
+                    SecureField("key (Optional)", text: $engine.streamKey)
+                        .textFieldStyle(.roundedBorder)
+                        .controlSize(.small)
+                        .disabled(engine.isLive)
+                }
+
+                HStack(alignment: .center, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(engine.isTestMode ? "Pipeline Mode" : "Stream Spec")
+                            .font(.system(size: 9))
+                            .foregroundColor(.secondary)
+                        Text("1080p60 · 15M")
+                            .font(.system(size: 10, weight: .bold))
                     }
 
-                    HStack(spacing: 8) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Server URL:")
-                                .font(.system(size: 10))
-                                .foregroundColor(.secondary)
-                            TextField("rtmp://... (Leave empty to test)", text: $engine.rtmpURL)
-                                .textFieldStyle(.roundedBorder)
-                                .controlSize(.small)
-                                .disabled(engine.isLive)
-                        }
+                    Spacer()
 
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Stream Key:")
-                                .font(.system(size: 10))
-                                .foregroundColor(.secondary)
-                            SecureField("key (Optional)", text: $engine.streamKey)
-                                .textFieldStyle(.roundedBorder)
-                                .controlSize(.small)
-                                .disabled(engine.isLive)
-                        }
-                    }
-
-                    HStack(alignment: .center, spacing: 14) {
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(engine.isTestMode ? "Hardware Pipeline" : "Stream Spec")
-                                .font(.system(size: 9))
-                                .foregroundColor(.secondary)
-                            Text("1080p60 · 15 Mbps")
-                                .font(.system(size: 11, weight: .bold))
-                        }
-
-                        Spacer()
-
-                        Button {
-                            Task {
-                                if engine.isLive {
-                                    await engine.stopStreaming()
-                                } else {
-                                    await engine.startStreaming()
-                                }
+                    Button {
+                        Task {
+                            if engine.isLive {
+                                await engine.stopStreaming()
+                            } else {
+                                await engine.startStreaming()
                             }
-                        } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: engine.isLive ? "stop.fill" : (engine.isTestMode ? "waveform.badge.magnifyingglass" : "play.fill"))
-                                Text(engine.isLive ? (engine.isDryRunTest ? "Stop Test" : "Stop Streaming") : (engine.isTestMode ? "Test Stream" : "Start Streaming"))
-                                    .fontWeight(.bold)
-                            }
-                            .frame(minWidth: 140, minHeight: 28)
                         }
-                        .buttonStyle(.borderedProminent)
-                        .tint(engine.isLive ? .red : (engine.isTestMode ? .indigo : .blue))
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: engine.isLive ? "stop.fill" : (engine.isTestMode ? "waveform.badge.magnifyingglass" : "play.fill"))
+                            Text(engine.isLive ? (engine.isDryRunTest ? "Stop Test" : "Stop Stream") : (engine.isTestMode ? "Test Stream" : "Start Stream"))
+                                .fontWeight(.bold)
+                                .font(.system(size: 11))
+                        }
+                        .frame(minWidth: 100, minHeight: 22)
                     }
+                    .buttonStyle(.borderedProminent)
+                    .tint(engine.isLive ? .red : (engine.isTestMode ? .indigo : .blue))
                 }
 
                 Divider()
 
-                // Bottom: Audio Mixer (placed right under Stream Destination)
+                // Audio Mixer
                 VStack(alignment: .leading, spacing: 3) {
                     HStack {
                         Label("Audio Mixer", systemImage: "waveform")
@@ -281,15 +227,15 @@ public struct StreamControlsView: View {
                         Spacer()
 
                         Text("\(Int(engine.audioPeakLevel * 100))%")
-                            .font(.system(size: 11, design: .monospaced))
+                            .font(.system(size: 10, design: .monospaced))
                             .foregroundColor(.secondary)
                     }
 
-                    HStack(spacing: 8) {
+                    HStack(spacing: 6) {
                         Text("Microphone")
                             .font(.system(size: 10))
                             .foregroundColor(.secondary)
-                            .frame(width: 70, alignment: .leading)
+                            .frame(width: 65, alignment: .leading)
 
                         GeometryReader { geo in
                             ZStack(alignment: .leading) {
@@ -308,15 +254,15 @@ public struct StreamControlsView: View {
                                     .animation(.linear(duration: 0.05), value: engine.audioPeakLevel)
                             }
                         }
-                        .frame(height: 10)
+                        .frame(height: 8)
                     }
                 }
 
                 Spacer(minLength: 0)
             }
-            .frame(maxWidth: .infinity)
+            .frame(width: 280)
         }
-        .padding(.horizontal, 14)
+        .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .background(Color(NSColor.windowBackgroundColor))
     }

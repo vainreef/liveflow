@@ -17,7 +17,7 @@ struct LiveflowApp: App {
         }
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unified)
-        .defaultSize(width: 1080, height: 720)
+        .defaultSize(width: 1080, height: 820)
         .commands {
             // 1. Remove "New Window" (Cmd+N) so app is strictly single-window
             CommandGroup(replacing: .newItem) {}

@@ -97,6 +97,63 @@ public final class SceneItem: Identifiable, @unchecked Sendable {
         rect.origin.x = (rect.origin.x + dx).clamped(to: -1.0...1.0)
         rect.origin.y = (rect.origin.y + dy).clamped(to: -1.0...1.0)
     }
+
+    // MARK: - Pixel & Percentage Accessors for Property Inspector
+    public var pixelX: Double {
+        get { Double(rect.origin.x * 1920.0) }
+        set { rect.origin.x = CGFloat(newValue / 1920.0) }
+    }
+    public var pixelY: Double {
+        get { Double(rect.origin.y * 1080.0) }
+        set { rect.origin.y = CGFloat(newValue / 1080.0) }
+    }
+    public var pixelWidth: Double {
+        get { Double(rect.size.width * 1920.0) }
+        set { rect.size.width = CGFloat(max(10.0, newValue) / 1920.0) }
+    }
+    public var pixelHeight: Double {
+        get { Double(rect.size.height * 1080.0) }
+        set { rect.size.height = CGFloat(max(10.0, newValue) / 1080.0) }
+    }
+
+    public var cropLeftPercent: Double {
+        get { Double(cropRect.origin.x * 100.0) }
+        set {
+            let val = CGFloat(newValue / 100.0).clamped(to: 0.0...0.95)
+            let rightEdge = cropRect.origin.x + cropRect.size.width
+            cropRect.origin.x = val
+            cropRect.size.width = max(0.02, rightEdge - val)
+        }
+    }
+    public var cropRightPercent: Double {
+        get { Double((1.0 - (cropRect.origin.x + cropRect.size.width)) * 100.0) }
+        set {
+            let val = CGFloat(newValue / 100.0).clamped(to: 0.0...0.95)
+            let maxRight = 1.0 - val
+            cropRect.size.width = max(0.02, maxRight - cropRect.origin.x)
+        }
+    }
+    public var cropTopPercent: Double {
+        get { Double(cropRect.origin.y * 100.0) }
+        set {
+            let val = CGFloat(newValue / 100.0).clamped(to: 0.0...0.95)
+            let bottomEdge = cropRect.origin.y + cropRect.size.height
+            cropRect.origin.y = val
+            cropRect.size.height = max(0.02, bottomEdge - val)
+        }
+    }
+    public var cropBottomPercent: Double {
+        get { Double((1.0 - (cropRect.origin.y + cropRect.size.height)) * 100.0) }
+        set {
+            let val = CGFloat(newValue / 100.0).clamped(to: 0.0...0.95)
+            let maxBottom = 1.0 - val
+            cropRect.size.height = max(0.02, maxBottom - cropRect.origin.y)
+        }
+    }
+    public var opacityPercent: Double {
+        get { Double(opacity * 100.0) }
+        set { opacity = Float(newValue / 100.0).clamped(to: 0.0...1.0) }
+    }
 }
 
 private extension Comparable {

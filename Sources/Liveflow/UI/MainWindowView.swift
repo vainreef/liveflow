@@ -13,7 +13,7 @@ public struct MainWindowView: View {
             let windowHeight = geo.size.height
             // Monitor height is strictly calculated from width to lock 16:9 and eliminate black bars
             let monitorHeight = windowWidth * (9.0 / 16.0)
-            let bottomHeight = max(130.0, windowHeight - monitorHeight - 1.0)
+            let bottomHeight = max(180.0, windowHeight - monitorHeight - 1.0)
 
             VStack(spacing: 0) {
                 // Permission Banner (if needed)
@@ -120,7 +120,7 @@ public struct MainWindowView: View {
             }
         }
         .background(Color(NSColor.windowBackgroundColor))
-        .frame(minWidth: 780, minHeight: 600)
+        .frame(minWidth: 860, minHeight: 696)
     }
 
     private var statusColor: Color {

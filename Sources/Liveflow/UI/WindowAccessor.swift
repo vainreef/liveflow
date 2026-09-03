@@ -10,9 +10,8 @@ public final class WindowManager: NSObject, NSWindowDelegate {
     public func register(window: NSWindow) {
         self.mainWindow = window
         window.delegate = self
-        window.isReleasedWhenClosed = false
-        let minW: CGFloat = 780.0
-        let minH: CGFloat = minW * (9.0 / 16.0) + 140.0 + 28.0
+        let minW: CGFloat = 860.0
+        let minH: CGFloat = minW * (9.0 / 16.0) + 185.0 + 28.0
         window.minSize = NSSize(width: minW, height: minH)
     }
 
@@ -59,8 +58,8 @@ public final class WindowManager: NSObject, NSWindowDelegate {
         let widthChanged = abs(frameSize.width - currentWidth) > 0.5
         let heightChanged = abs(frameSize.height - currentHeight) > 0.5
 
-        let minWidth: CGFloat = 780.0
-        let minBottomHeight: CGFloat = 140.0
+        let minWidth: CGFloat = 860.0
+        let minBottomHeight: CGFloat = 185.0
 
         // 1. 横向拉伸 (Horizontal Resize):
         // 整个窗口高度绝对不变，只改变下面部分的高度（监视器变大，下面自适应收缩，窗口总高度固定）

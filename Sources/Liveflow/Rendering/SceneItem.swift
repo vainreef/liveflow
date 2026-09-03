@@ -166,34 +166,60 @@ public final class SceneItem: Identifiable, @unchecked Sendable {
     public var scaleXPercent: Double {
         get { Double(rect.size.width * 100.0) }
         set {
+            let centerX = rect.origin.x + rect.size.width / 2.0
+            let centerY = rect.origin.y + rect.size.height / 2.0
             let newW = CGFloat(max(1.0, newValue) / 100.0)
+            let newH: CGFloat
             if isScaleLocked && rect.size.width > 0.0001 {
                 let ratio = newW / rect.size.width
-                rect.size.height = max(0.001, rect.size.height * ratio)
+                newH = max(0.001, rect.size.height * ratio)
+            } else {
+                newH = rect.size.height
             }
+            rect.origin.x = centerX - newW / 2.0
+            rect.origin.y = centerY - newH / 2.0
             rect.size.width = newW
+            rect.size.height = newH
         }
     }
 
     public var scaleYPercent: Double {
         get { Double(rect.size.height * 100.0) }
         set {
+            let centerX = rect.origin.x + rect.size.width / 2.0
+            let centerY = rect.origin.y + rect.size.height / 2.0
             let newH = CGFloat(max(1.0, newValue) / 100.0)
+            let newW: CGFloat
             if isScaleLocked && rect.size.height > 0.0001 {
                 let ratio = newH / rect.size.height
-                rect.size.width = max(0.001, rect.size.width * ratio)
+                newW = max(0.001, rect.size.width * ratio)
+            } else {
+                newW = rect.size.width
             }
+            rect.origin.x = centerX - newW / 2.0
+            rect.origin.y = centerY - newH / 2.0
+            rect.size.width = newW
             rect.size.height = newH
         }
     }
 
     public var pixelWidth: Double {
         get { Double(rect.size.width * 1920.0) }
-        set { rect.size.width = CGFloat(max(10.0, newValue) / 1920.0) }
+        set {
+            let centerX = rect.origin.x + rect.size.width / 2.0
+            let newW = CGFloat(max(10.0, newValue) / 1920.0)
+            rect.origin.x = centerX - newW / 2.0
+            rect.size.width = newW
+        }
     }
     public var pixelHeight: Double {
         get { Double(rect.size.height * 1080.0) }
-        set { rect.size.height = CGFloat(max(10.0, newValue) / 1080.0) }
+        set {
+            let centerY = rect.origin.y + rect.size.height / 2.0
+            let newH = CGFloat(max(10.0, newValue) / 1080.0)
+            rect.origin.y = centerY - newH / 2.0
+            rect.size.height = newH
+        }
     }
 
     public var cropLeftPercent: Double {

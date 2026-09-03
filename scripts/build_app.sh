@@ -35,13 +35,13 @@ cp "$BIN_PATH" "$MACOS_DIR/Liveflow"
 cp "$ROOT_DIR/Info.plist" "$CONTENTS_DIR/Info.plist"
 cp "$ROOT_DIR/native/LiveflowIcon.icns" "$RESOURCES_DIR/LiveflowIcon.icns"
 
-echo "Signing application bundle..."
-codesign --force --deep --sign - --entitlements "$ROOT_DIR/Liveflow.entitlements" "$APP_BUNDLE"
+echo "Signing application bundle with stable designated requirement..."
+codesign --force --deep --sign - --requirements '=designated => identifier "com.freevian.liveflow"' --entitlements "$ROOT_DIR/Liveflow.entitlements" "$APP_BUNDLE"
 
 echo "Deploying and replacing to /Applications/Liveflow.app..."
 rm -rf "$APPLICATIONS_APP"
 cp -R "$APP_BUNDLE" "$APPLICATIONS_APP"
-codesign --force --deep --sign - --entitlements "$ROOT_DIR/Liveflow.entitlements" "$APPLICATIONS_APP"
+codesign --force --deep --sign - --requirements '=designated => identifier "com.freevian.liveflow"' --entitlements "$ROOT_DIR/Liveflow.entitlements" "$APPLICATIONS_APP"
 touch "$APPLICATIONS_APP"
 
 echo "========================================"

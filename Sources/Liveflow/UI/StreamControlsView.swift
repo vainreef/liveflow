@@ -12,11 +12,30 @@ public struct StreamControlsView: View {
                         .font(.headline)
                     Spacer()
                     Menu {
-                        Button("Add Screen Capture") {
-                            Task { try? await engine.addScreenCaptureSource() }
+                        Menu("Capture Display (选择显示屏)") {
+                            if engine.availableDisplays.isEmpty {
+                                Button("Refresh Displays (刷新显示器列表)") {
+                                    Task { await engine.refreshDisplays() }
+                                }
+                            } else {
+                                ForEach(engine.availableDisplays) { display in
+                                    Button(display.name) {
+                                        Task { await engine.addScreenCaptureSource(display: display) }
+                                    }
+                                }
+                                Divider()
+                                Button("Refresh List (刷新列表)") {
+                                    Task { await engine.refreshDisplays() }
+                                }
+                            }
                         }
-                        Button("Add Camera (PIP)") {
+
+                        Button("Add Camera (PIP 摄像头)") {
                             Task { try? await engine.addCameraSource() }
+                        }
+
+                        Button("Add Test Pattern (测试彩条)") {
+                            Task { await engine.addTestPatternSource() }
                         }
                     } label: {
                         Image(systemName: "plus")

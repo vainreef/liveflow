@@ -109,6 +109,9 @@ public final class StreamEngine: ObservableObject {
     @Published public var stats: StreamStats = StreamStats()
     @Published public var sceneItems: [SceneItem] = []
     @Published public var audioPeakLevel: Float = 0.0
+    @Published public var availableDisplays: [DisplayItem] = []
+    @Published public var hasScreenPermission: Bool = true
+    @Published public var lastErrorMessage: String? = nil
 
     @Published public var rtmpURL: String = "rtmp://127.0.0.1:19350/live"
     @Published public var streamKey: String = "test"
@@ -135,6 +138,9 @@ public final class StreamEngine: ObservableObject {
         setupAudio()
         worker.startRenderLoop()
         startStatsMonitor()
+        Task { [weak self] in
+            await self?.refreshDisplays()
+        }
     }
 
     private func setupDefaultScene() {
@@ -228,13 +234,60 @@ public final class StreamEngine: ObservableObject {
         stats = StreamStats()
     }
 
-    // MARK: - Scene Management
-    public func addScreenCaptureSource() async throws {
-        let screen = ScreenCaptureSource()
-        try await screen.start()
+    // MARK: - Scene & Display Management
+    public func refreshDisplays() async {
+        hasScreenPermission = PermissionHelper.hasScreenRecordingPermission
+        guard hasScreenPermission else {
+            availableDisplays = []
+            return
+        }
+        do {
+            availableDisplays = try await ScreenCaptureSource.getAvailableDisplays()
+        } catch {
+            print("[StreamEngine] Failed to enumerate displays: \(error)")
+        }
+    }
+
+    public func addScreenCaptureSource(display: DisplayItem) async {
+        if !PermissionHelper.hasScreenRecordingPermission {
+            PermissionHelper.requestScreenRecordingPermission()
+            PermissionHelper.openScreenRecordingSettings()
+            lastErrorMessage = "请在系统设置中允许 Liveflow 屏幕录制权限，然后重新添加显示器。"
+            return
+        }
+
+        do {
+            let screen = ScreenCaptureSource(display: display.scDisplay, name: display.name)
+            try await screen.start()
+
+            // If default Test Pattern is the only item, replace it
+            if sceneItems.count == 1 && sceneItems[0].source is TestPatternSource {
+                let old = sceneItems.removeFirst()
+                await old.source.stop()
+            }
+
+            let item = SceneItem(
+                name: display.name,
+                source: screen,
+                rect: CGRect(x: 0, y: 0, width: 1, height: 1),
+                opacity: 1.0,
+                zIndex: sceneItems.count,
+                isEnabled: true
+            )
+            sceneItems.append(item)
+            worker.setSceneItems(sceneItems)
+            lastErrorMessage = nil
+        } catch {
+            lastErrorMessage = "启动屏幕捕获失败: \(error.localizedDescription)"
+            print("[StreamEngine] addScreenCaptureSource error: \(error)")
+        }
+    }
+
+    public func addTestPatternSource() async {
+        let testPattern = TestPatternSource(width: 1920, height: 1080, fps: targetFPS)
         let item = SceneItem(
-            name: "Screen Display",
-            source: screen,
+            name: "Test Pattern (Color Bars)",
+            source: testPattern,
             rect: CGRect(x: 0, y: 0, width: 1, height: 1),
             opacity: 1.0,
             zIndex: sceneItems.count,
@@ -242,6 +295,7 @@ public final class StreamEngine: ObservableObject {
         )
         sceneItems.append(item)
         worker.setSceneItems(sceneItems)
+        try? await testPattern.start()
     }
 
     public func addCameraSource() async throws {

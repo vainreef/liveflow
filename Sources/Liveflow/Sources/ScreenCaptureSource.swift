@@ -2,6 +2,23 @@ import Foundation
 import ScreenCaptureKit
 import CoreMedia
 import CoreVideo
+import CoreGraphics
+
+public struct DisplayItem: Identifiable, @unchecked Sendable {
+    public let id: CGDirectDisplayID
+    public let name: String
+    public let width: Int
+    public let height: Int
+    public let scDisplay: SCDisplay
+
+    public init(scDisplay: SCDisplay, index: Int) {
+        self.id = scDisplay.displayID
+        self.width = scDisplay.width
+        self.height = scDisplay.height
+        self.scDisplay = scDisplay
+        self.name = "Display \(index + 1) (\(scDisplay.width)×\(scDisplay.height))"
+    }
+}
 
 /// High performance screen capture source using Apple's ScreenCaptureKit.
 /// Output is zero-copy IOSurface-backed CVPixelBuffer.
@@ -14,16 +31,32 @@ public final class ScreenCaptureSource: NSObject, VideoSource, SCStreamOutput, S
     private let lock = NSLock()
     private var _latestFrame: VideoFrame?
     private var _isRunning = false
-    private let targetDisplayIndex: Int
+    private let targetDisplayID: CGDirectDisplayID?
+    private let targetDisplay: SCDisplay?
 
     public var isRunning: Bool {
         lock.withLock { _isRunning }
     }
 
-    public init(displayIndex: Int = 0, name: String = "Main Display") {
-        self.targetDisplayIndex = displayIndex
-        self.name = name
+    public init(display: SCDisplay? = nil, displayID: CGDirectDisplayID? = nil, name: String? = nil) {
+        self.targetDisplay = display
+        self.targetDisplayID = displayID ?? display?.displayID
+        if let name = name {
+            self.name = name
+        } else if let display = display {
+            self.name = "Display (\(display.width)×\(display.height))"
+        } else {
+            self.name = "Screen Capture"
+        }
         super.init()
+    }
+
+    /// Queries all available displays currently connected to the Mac
+    public static func getAvailableDisplays() async throws -> [DisplayItem] {
+        let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+        return content.displays.enumerated().map { idx, display in
+            DisplayItem(scDisplay: display, index: idx)
+        }
     }
 
     public func start() async throws {
@@ -38,12 +71,20 @@ public final class ScreenCaptureSource: NSObject, VideoSource, SCStreamOutput, S
             throw NSError(domain: "Liveflow", code: -1, userInfo: [NSLocalizedDescriptionKey: "No displays found for ScreenCaptureKit"])
         }
 
-        let display = (targetDisplayIndex < content.displays.count) ? content.displays[targetDisplayIndex] : content.displays[0]
-        let filter = SCContentFilter(display: display, excludingWindows: [])
+        let selectedDisplay: SCDisplay
+        if let targetID = targetDisplayID, let match = content.displays.first(where: { $0.displayID == targetID }) {
+            selectedDisplay = match
+        } else if let target = targetDisplay {
+            selectedDisplay = target
+        } else {
+            selectedDisplay = content.displays[0]
+        }
+
+        let filter = SCContentFilter(display: selectedDisplay, excludingWindows: [])
 
         let config = SCStreamConfiguration()
-        config.width = display.width
-        config.height = display.height
+        config.width = selectedDisplay.width
+        config.height = selectedDisplay.height
         config.minimumFrameInterval = CMTime(value: 1, timescale: 60)
         config.queueDepth = 5
         config.pixelFormat = kCVPixelFormatType_32BGRA
@@ -57,6 +98,7 @@ public final class ScreenCaptureSource: NSObject, VideoSource, SCStreamOutput, S
         lock.withLock {
             _isRunning = true
         }
+        print("[ScreenCaptureKit] Started capturing display: \(selectedDisplay.displayID) (\(selectedDisplay.width)x\(selectedDisplay.height))")
     }
 
     public func stop() async {

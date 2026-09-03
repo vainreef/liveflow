@@ -36,6 +36,52 @@ public struct MainWindowView: View {
 
             Divider()
 
+            if !engine.hasScreenPermission {
+                HStack(spacing: 12) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundColor(.yellow)
+                    Text("Liveflow 需要「屏幕与系统音频录制」权限以捕获显示器画面。")
+                        .font(.system(size: 12, weight: .medium))
+                    Spacer()
+                    Button("打开系统设置授予权限") {
+                        PermissionHelper.requestScreenRecordingPermission()
+                        PermissionHelper.openScreenRecordingSettings()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                    Button("重新检查") {
+                        Task { await engine.refreshDisplays() }
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 6)
+                .background(Color.yellow.opacity(0.15))
+
+                Divider()
+            }
+
+            if let errorMsg = engine.lastErrorMessage {
+                HStack(spacing: 12) {
+                    Image(systemName: "xmark.octagon.fill")
+                        .foregroundColor(.red)
+                    Text(errorMsg)
+                        .font(.system(size: 12))
+                        .foregroundColor(.red)
+                    Spacer()
+                    Button("忽略") {
+                        engine.lastErrorMessage = nil
+                    }
+                    .controlSize(.small)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 6)
+                .background(Color.red.opacity(0.1))
+
+                Divider()
+            }
+
             // Metal Canvas View (16:9 Aspect Ratio)
             ZStack {
                 Color.black

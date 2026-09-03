@@ -112,10 +112,10 @@ public final class StreamEngine: ObservableObject {
 
     @Published public var rtmpURL: String = "rtmp://127.0.0.1:19350/live"
     @Published public var streamKey: String = "test"
-    @Published public var canvasWidth: Int = 1920
-    @Published public var canvasHeight: Int = 1080
-    @Published public var targetFPS: Int = 60
-    @Published public var targetBitrateKbps: Int = 15000
+    public let canvasWidth: Int = 1920
+    public let canvasHeight: Int = 1080
+    public let targetFPS: Int = 60
+    public let targetBitrateKbps: Int = 15000
 
     public let worker: RenderLoopWorker
     private var videoEncoder: VideoToolboxEncoder?

@@ -12,30 +12,34 @@ public struct StreamControlsView: View {
                         .font(.headline)
                     Spacer()
                     Menu {
-                        Menu("Capture Display (选择显示屏)") {
+                        Section("🖥️ 屏幕捕获 (Capture Screen)") {
                             if engine.availableDisplays.isEmpty {
-                                Button("Refresh Displays (刷新显示器列表)") {
+                                Button("未检测到显示器 (点击刷新)") {
                                     Task { await engine.refreshDisplays() }
                                 }
                             } else {
                                 ForEach(engine.availableDisplays) { display in
-                                    Button(display.name) {
+                                    Button("🖥️ \(display.name)") {
                                         Task { await engine.addScreenCaptureSource(display: display) }
                                     }
-                                }
-                                Divider()
-                                Button("Refresh List (刷新列表)") {
-                                    Task { await engine.refreshDisplays() }
                                 }
                             }
                         }
 
-                        Button("Add Camera (PIP 摄像头)") {
-                            Task { try? await engine.addCameraSource() }
+                        Section("🎥 其他画面源 (Other Sources)") {
+                            Button("📷 摄像头 (PIP 画中画)") {
+                                Task { try? await engine.addCameraSource() }
+                            }
+
+                            Button("🎨 测试彩条 (Color Bars)") {
+                                Task { await engine.addTestPatternSource() }
+                            }
                         }
 
-                        Button("Add Test Pattern (测试彩条)") {
-                            Task { await engine.addTestPatternSource() }
+                        Divider()
+
+                        Button("🔄 刷新显示器列表") {
+                            Task { await engine.refreshDisplays() }
                         }
                     } label: {
                         Image(systemName: "plus")

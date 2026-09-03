@@ -174,8 +174,13 @@ public final class StreamEngine: ObservableObject {
             .autoconnect()
             .sink { [weak self] _ in
                 guard let self = self else { return }
-                self.stats = self.streamOutput.stats
-                self.audioPeakLevel = self.audioEngine.peakLevel
+                if self.isLive {
+                    self.stats = self.streamOutput.stats
+                }
+                let newPeak = self.audioEngine.peakLevel
+                if abs(self.audioPeakLevel - newPeak) > 0.05 || (newPeak == 0.0 && self.audioPeakLevel != 0.0) {
+                    self.audioPeakLevel = newPeak
+                }
             }
             .store(in: &cancellables)
     }

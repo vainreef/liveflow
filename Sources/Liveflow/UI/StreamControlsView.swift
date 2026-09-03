@@ -53,7 +53,7 @@ public struct StreamControlsView: View {
                     .controlSize(.small)
                 }
 
-                // Sources List in a tight, compact container
+                // Sources List in a flexible container that expands with panel height
                 VStack(spacing: 0) {
                     ScrollView(.vertical, showsIndicators: true) {
                         VStack(spacing: 3) {
@@ -111,7 +111,7 @@ public struct StreamControlsView: View {
                         }
                         .padding(4)
                     }
-                    .frame(height: 84)
+                    .frame(minHeight: 70, maxHeight: .infinity)
                 }
                 .background(Color(NSColor.controlBackgroundColor).opacity(0.6))
                 .cornerRadius(5)
@@ -291,11 +291,13 @@ public struct StreamControlsView: View {
                         .frame(height: 10)
                     }
                 }
+
+                Spacer(minLength: 0)
             }
             .frame(maxWidth: .infinity)
         }
         .padding(.horizontal, 14)
-        .padding(.vertical, 10)
+        .padding(.vertical, 8)
         .background(Color(NSColor.windowBackgroundColor))
     }
 }
